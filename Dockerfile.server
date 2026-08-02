@@ -1,0 +1,40 @@
+FROM node:20-alpine AS base
+WORKDIR /app
+
+# Install dependencies
+FROM base AS deps
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+# Build TypeScript
+FROM base AS builder
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+# Production image
+FROM base AS runner
+ENV NODE_ENV=production
+
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 express
+
+# Copy built files
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/package.json ./
+
+# Create required directories
+RUN mkdir -p sessions uploads logs && \
+    chown -R express:nodejs sessions uploads logs
+
+USER express
+
+EXPOSE 3001
+
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+  CMD wget -q --spider http://localhost:3001/api/health || exit 1
+
+CMD ["node", "dist/index.js"]

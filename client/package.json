@@ -1,0 +1,40 @@
+{
+  "name": "wa-client",
+  "version": "1.0.0",
+  "description": "WhatsApp Automation Platform - Dashboard",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000",
+    "lint": "next lint",
+    "format": "prettier --write src/**/*.{ts,tsx,css}"
+  },
+  "dependencies": {
+    "next": "^14.2.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-window": "^1.8.10",
+    "react-virtualized-auto-sizer": "^1.0.24",
+    "swr": "^2.2.5",
+    "js-cookie": "^3.0.5",
+    "react-hot-toast": "^2.4.1",
+    "lucide-react": "^0.438.0",
+    "clsx": "^2.1.1",
+    "date-fns": "^3.6.0"
+  },
+  "devDependencies": {
+    "@types/js-cookie": "^3.0.6",
+    "@types/node": "^22.0.0",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@types/react-window": "^1.8.8",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "^14.2.5",
+    "prettier": "^3.3.3",
+    "typescript": "^5.5.4"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

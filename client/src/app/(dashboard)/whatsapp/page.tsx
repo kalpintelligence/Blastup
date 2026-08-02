@@ -1,0 +1,339 @@
+'use client';
+
+import { useEffect, useState, useCallback } from 'react';
+import Header from '@/components/layout/Header';
+import { whatsappApi } from '@/lib/api';
+import { SkeletonStatusCard, Shimmer } from '@/components/ui/Skeleton';
+import { RefreshCw, Trash2, LogOut, QrCode, CheckCircle2, Loader2 } from 'lucide-react';
+import Modal from '@/components/ui/Modal';
+
+const statusLabels: Record<string, string> = {
+  connected: 'Connected',
+  connecting: 'Connecting...',
+  disconnected: 'Disconnected',
+  qr_ready: 'Waiting for Scan',
+  error: 'Error',
+};
+
+type ViewState = 'loading' | 'qr_setup' | 'qr_ready' | 'connecting' | 'connected' | 'error';
+
+export default function WhatsAppPage() {
+  const [status, setStatus] = useState<any>(null);
+  const [qr, setQr] = useState<string | null>(null);
+  const [viewState, setViewState] = useState<ViewState>('loading');
+  const [actionLoading, setActionLoading] = useState('');
+  const [error, setError] = useState('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isInitiating, setIsInitiating] = useState(false);
+
+  const fetchStatus = useCallback(async () => {
+    try {
+      const res = await whatsappApi.getStatus();
+      const data = res.data;
+      setStatus(data);
+
+      const st = data?.status;
+
+      if (st === 'connected') {
+        setViewState('connected');
+        setQr(null);
+      } else if (st === 'qr_ready') {
+        const qrRes = await whatsappApi.getQR().catch(() => null);
+        const qrCode = qrRes?.data?.qr || null;
+        setQr(qrCode);
+        setViewState(qrCode ? 'qr_ready' : 'qr_setup');
+      } else if (st === 'connecting') {
+        setViewState('connecting');
+        setQr(null);
+      } else if (st === 'error') {
+        setViewState('error');
+        setQr(null);
+      } else {
+        // disconnected or null status — go directly to QR setup
+        setViewState('qr_setup');
+        setQr(null);
+      }
+    } catch {
+      setViewState('qr_setup');
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchStatus();
+    const interval = setInterval(fetchStatus, 4000);
+    return () => clearInterval(interval);
+  }, [fetchStatus]);
+
+  const handleAction = async (action: string, fn: () => Promise<any>) => {
+    setActionLoading(action);
+    setError('');
+    try {
+      await fn();
+      await fetchStatus();
+    } catch (err: any) {
+      setError(err?.data?.message || err?.message || 'Action failed');
+    } finally {
+      setActionLoading('');
+    }
+  };
+
+  const handleGenerateQR = async () => {
+    setIsInitiating(true);
+    setError('');
+    try {
+      await whatsappApi.reconnect();
+      // Poll until QR appears
+      let tries = 0;
+      const poll = setInterval(async () => {
+        tries++;
+        await fetchStatus();
+        if (tries > 12) clearInterval(poll);
+      }, 1500);
+    } catch (err: any) {
+      setError(err?.data?.message || err?.message || 'Failed to generate QR');
+    } finally {
+      setIsInitiating(false);
+    }
+  };
+
+  const isConnected = viewState === 'connected';
+
+  return (
+    <>
+      <Header title="WhatsApp" subtitle="Manage your WhatsApp connection" />
+      <div className="page-content">
+        {error && (
+          <div className="login-error" style={{ marginBottom: 16 }}>{error}</div>
+        )}
+
+        {/* ── Loading ── */}
+        {viewState === 'loading' && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 20 }}>
+            <SkeletonStatusCard />
+            <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+              <Shimmer width={56} height={56} radius={28} />
+              <Shimmer width="55%" height={18} radius={6} />
+              <Shimmer width="75%" height={12} radius={4} />
+              <Shimmer width="60%" height={12} radius={4} />
+            </div>
+          </div>
+        )}
+
+        {/* ── QR Setup (disconnected, no session) ── */}
+        {viewState === 'qr_setup' && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 20px', textAlign: 'center' }}>
+            <div style={{
+              width: 80, height: 80, borderRadius: '50%',
+              backgroundColor: 'rgba(51, 217, 81, 0.1)',
+              color: 'var(--color-primary)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              marginBottom: 24,
+              border: '2px solid rgba(51, 217, 81, 0.25)',
+            }}>
+              <QrCode size={38} />
+            </div>
+            <h2 className="font-serif font-bold" style={{ fontSize: 24, marginBottom: 8, color: 'var(--color-text)' }}>
+              Connect WhatsApp Account
+            </h2>
+            <p className="text-secondary" style={{ maxWidth: 380, marginBottom: 32, fontSize: 14, lineHeight: 1.6 }}>
+              Scan the QR code with your WhatsApp app to link your phone number and start sending messages through Blastup.
+            </p>
+
+            <button
+              id="wa-generate-qr"
+              className="btn btn-primary"
+              onClick={handleGenerateQR}
+              disabled={isInitiating}
+              style={{ minWidth: 200, justifyContent: 'center', height: 44, fontSize: 14 }}
+            >
+              {isInitiating
+                ? <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Generating QR...</>
+                : <><QrCode size={16} /> Generate QR Code</>
+              }
+            </button>
+
+            <p className="text-secondary" style={{ fontSize: 12, marginTop: 16 }}>
+              On your phone: <strong>WhatsApp → Settings → Linked Devices → Link a Device</strong>
+            </p>
+          </div>
+        )}
+
+        {/* ── QR Ready (scan it) ── */}
+        {viewState === 'qr_ready' && qr && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '32px 20px', textAlign: 'center' }}>
+            <h2 className="font-serif font-bold" style={{ fontSize: 22, marginBottom: 6 }}>
+              Scan QR Code
+            </h2>
+            <p className="text-secondary" style={{ marginBottom: 24, fontSize: 13 }}>
+              Open WhatsApp → <strong>Settings → Linked Devices → Link a Device</strong>
+            </p>
+
+            <div style={{
+              backgroundColor: '#fff',
+              borderRadius: 16,
+              padding: 16,
+              boxShadow: '0 4px 24px rgba(0,0,0,0.10)',
+              border: '1px solid var(--color-border)',
+              marginBottom: 16,
+              display: 'inline-block',
+            }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={qr} alt="WhatsApp QR Code" style={{ width: 240, height: 240, display: 'block' }} />
+            </div>
+
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              fontSize: 12, color: 'var(--color-text-secondary)',
+              backgroundColor: 'rgba(51, 217, 81, 0.08)',
+              border: '1px solid rgba(51, 217, 81, 0.2)',
+              borderRadius: 20, padding: '4px 12px',
+            }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: 'var(--color-primary)', animation: 'pulse 1.5s ease-in-out infinite' }} />
+              Waiting for scan · QR refreshes every 60s
+            </div>
+          </div>
+        )}
+
+        {/* ── Connecting ── */}
+        {viewState === 'connecting' && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '64px 20px', textAlign: 'center' }}>
+            <Loader2 size={48} style={{ color: 'var(--color-primary)', animation: 'spin 1s linear infinite', marginBottom: 20 }} />
+            <h2 className="font-serif font-bold" style={{ fontSize: 22, marginBottom: 8 }}>Connecting...</h2>
+            <p className="text-secondary" style={{ fontSize: 13 }}>
+              Establishing WhatsApp connection. This may take a few seconds.
+            </p>
+          </div>
+        )}
+
+        {/* ── Connected (status + management buttons) ── */}
+        {isConnected && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 20 }}>
+            {/* Status Card */}
+            <div className="card">
+              <div className="card-header">
+                <span className="card-title">Connection Status</span>
+                <span className="badge badge-success">
+                  <span className="status-dot connected" />
+                  {statusLabels[status?.status] || 'Connected'}
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {[
+                  { label: 'Phone Number', value: status?.phone ? `+${status.phone}` : '—' },
+                  { label: 'Display Name', value: status?.pushName || '—' },
+                  { label: 'Platform', value: status?.platform || 'WhatsApp Multi-Device' },
+                  { label: 'Total Chats', value: status?.totalChats?.toLocaleString() || '0' },
+                  { label: 'Last Connected', value: status?.lastConnectedAt ? new Date(status.lastConnectedAt).toLocaleString() : '—' },
+                  { label: 'Last Sync', value: status?.lastSyncAt ? new Date(status.lastSyncAt).toLocaleString() : '—' },
+                ].map(({ label, value }) => (
+                  <div key={label} className="flex justify-between items-center">
+                    <span className="text-sm text-secondary">{label}</span>
+                    <span className="text-sm font-medium">{value}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="divider" />
+
+              {/* Management Buttons — only when connected */}
+              <div className="flex gap-2" style={{ flexWrap: 'wrap' }}>
+                <button
+                  id="wa-reconnect"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => handleAction('reconnect', whatsappApi.reconnect)}
+                  disabled={!!actionLoading}
+                >
+                  {actionLoading === 'reconnect' ? <div className="spinner" style={{ width: 12, height: 12 }} /> : <RefreshCw size={12} />}
+                  Reconnect
+                </button>
+
+                <button
+                  id="wa-logout"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => handleAction('logout', whatsappApi.logout)}
+                  disabled={!!actionLoading}
+                >
+                  {actionLoading === 'logout' ? <div className="spinner" style={{ width: 12, height: 12 }} /> : <LogOut size={12} />}
+                  Logout WA
+                </button>
+
+                <button
+                  id="wa-delete-session"
+                  className="btn btn-secondary btn-sm"
+                  style={{ color: 'var(--color-danger)' }}
+                  onClick={() => setShowDeleteModal(true)}
+                  disabled={!!actionLoading}
+                >
+                  {actionLoading === 'delete' ? <div className="spinner" style={{ width: 12, height: 12 }} /> : <Trash2 size={12} />}
+                  Delete Session
+                </button>
+              </div>
+            </div>
+
+            {/* Connected Banner */}
+            <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '32px 20px' }}>
+              <div style={{
+                width: 56, height: 56, borderRadius: '50%',
+                backgroundColor: 'rgba(16, 185, 129, 0.12)', color: 'var(--color-success)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16,
+              }}>
+                <CheckCircle2 size={28} />
+              </div>
+              <h3 className="font-serif font-bold" style={{ fontSize: 18, marginBottom: 6 }}>WhatsApp Active</h3>
+              <p className="text-secondary" style={{ fontSize: 13, maxWidth: 280 }}>
+                Your phone is linked and ready to process automated broadcasts and messages.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* ── Error ── */}
+        {viewState === 'error' && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '64px 20px', textAlign: 'center' }}>
+            <div style={{
+              width: 56, height: 56, borderRadius: '50%', backgroundColor: 'var(--color-danger-bg)', color: 'var(--color-danger)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16,
+            }}>
+              <QrCode size={28} />
+            </div>
+            <h3 className="font-serif font-bold" style={{ fontSize: 20, marginBottom: 8 }}>Connection Error</h3>
+            <p className="text-secondary" style={{ fontSize: 13, marginBottom: 24 }}>
+              WhatsApp encountered an error. Try reconnecting.
+            </p>
+            <button
+              id="wa-retry"
+              className="btn btn-primary"
+              onClick={handleGenerateQR}
+              disabled={isInitiating}
+              style={{ minWidth: 160, justifyContent: 'center' }}
+            >
+              <RefreshCw size={14} /> Retry Connection
+            </button>
+          </div>
+        )}
+      </div>
+
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Delete WhatsApp Session"
+        description="This will disconnect WhatsApp and delete all synced chats, contacts, and messages from the database. You will need to re-scan the QR code to reconnect."
+        variant="danger"
+        confirmText="Delete & Reset"
+        onConfirm={() => handleAction('delete', whatsappApi.deleteSession)}
+      />
+
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.4; }
+        }
+      `}</style>
+    </>
+  );
+}

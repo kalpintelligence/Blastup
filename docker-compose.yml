@@ -1,0 +1,87 @@
+version: '3.9'
+
+services:
+  mongodb:
+    image: mongo:7-jammy
+    container_name: wa_mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASS:-changeme}
+      MONGO_INITDB_DATABASE: wa_platform
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - wa_network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  server:
+    build:
+      context: ./server
+      dockerfile: ../Dockerfile.server
+    container_name: wa_server
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      MONGODB_URI: mongodb://${MONGO_ROOT_USER:-admin}:${MONGO_ROOT_PASS:-changeme}@mongodb:27017/wa_platform?authSource=admin
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: 24h
+      COOKIE_SECRET: ${COOKIE_SECRET}
+      BCRYPT_ROUNDS: 12
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      CLIENT_URL: ${CLIENT_URL:-http://localhost:3000}
+      UPLOAD_DIR: /app/uploads
+      MAX_FILE_SIZE: 10485760
+      SESSION_DIR: /app/sessions
+      RATE_LIMIT_MAX: 100
+      LOGIN_RATE_LIMIT_MAX: 5
+      LOG_LEVEL: info
+    volumes:
+      - server_sessions:/app/sessions
+      - server_uploads:/app/uploads
+      - server_logs:/app/logs
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - wa_network
+    ports:
+      - "3001:3001"
+    healthcheck:
+      test: wget -q --spider http://localhost:3001/api/health || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  client:
+    build:
+      context: ./client
+      dockerfile: ../Dockerfile.client
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
+    container_name: wa_client
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
+    depends_on:
+      - server
+    networks:
+      - wa_network
+    ports:
+      - "3000:3000"
+
+networks:
+  wa_network:
+    driver: bridge
+
+volumes:
+  mongo_data:
+  server_sessions:
+  server_uploads:
+  server_logs:
