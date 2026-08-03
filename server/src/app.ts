@@ -57,9 +57,14 @@ export function createApp(): express.Application {
             in: 'cookie',
             name: 'wa_token',
           },
+          apiKeyAuth: {
+            type: 'apiKey',
+            in: 'header',
+            name: 'x-api-key',
+          },
         },
       },
-      security: [{ cookieAuth: [] }],
+      security: [{ cookieAuth: [] }, { apiKeyAuth: [] }],
     },
     apis: ['./src/routes/*.ts'],
   });
