@@ -29,9 +29,12 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
       if (apiKeyDoc) {
         // Update lastUsedAt in the background
         ApiKey.updateOne({ _id: apiKeyDoc._id }, { lastUsedAt: new Date() }).exec();
-        
+
         req.user = {
-          id: apiKeyDoc._id.toString(),
+          // Must be the owning account's id, not the key's own id — this is
+          // used everywhere as the WhatsApp instanceId, so using the key's
+          // id here would point at an instance that never exists.
+          id: apiKeyDoc.userId.toString(),
           username: `API_KEY_${apiKeyDoc.name}`,
           role: 'api',
         };
