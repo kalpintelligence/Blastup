@@ -1,4 +1,8 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+// Always relative: routed through the Next.js rewrite in next.config.js so
+// requests stay same-origin and wa_token lands as a same-site cookie. A
+// direct cross-origin base here breaks auth in production (cookie set on
+// the API's origin, never sent back to the app's origin).
+const API_BASE = '';
 
 interface RequestOptions extends RequestInit {
   params?: Record<string, string | number | boolean | undefined>;
