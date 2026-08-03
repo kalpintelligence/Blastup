@@ -2,8 +2,11 @@ import rateLimit from 'express-rate-limit';
 import { env } from '../config/env';
 import { logger } from '../config/logger';
 
+const isDevelopment = env.NODE_ENV === 'development';
+
 // General API rate limit
 export const apiLimiter = rateLimit({
+  skip: () => isDevelopment,
   windowMs: env.RATE_LIMIT_WINDOW_MS,
   max: env.RATE_LIMIT_MAX,
   standardHeaders: true,
@@ -21,6 +24,7 @@ export const apiLimiter = rateLimit({
 
 // Strict login rate limit
 export const loginLimiter = rateLimit({
+  skip: () => isDevelopment,
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: env.LOGIN_RATE_LIMIT_MAX, // default 5
   standardHeaders: true,
@@ -38,6 +42,7 @@ export const loginLimiter = rateLimit({
 
 // QR endpoint — prevent spamming
 export const qrLimiter = rateLimit({
+  skip: () => isDevelopment,
   windowMs: 60 * 1000,
   max: 10,
   message: { success: false, error: 'Too many QR requests' },
@@ -45,6 +50,7 @@ export const qrLimiter = rateLimit({
 
 // Send message limiter
 export const sendLimiter = rateLimit({
+  skip: () => isDevelopment,
   windowMs: 60 * 1000, // 1 minute
   max: 30, // 30 messages per minute
   message: { success: false, error: 'Sending too fast, slow down.' },

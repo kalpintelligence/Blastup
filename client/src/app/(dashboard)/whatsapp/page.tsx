@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import Header from '@/components/layout/Header';
 import { whatsappApi } from '@/lib/api';
 import { SkeletonStatusCard, Shimmer } from '@/components/ui/Skeleton';
@@ -16,6 +16,8 @@ const statusLabels: Record<string, string> = {
 };
 
 type ViewState = 'loading' | 'qr_setup' | 'qr_ready' | 'connecting' | 'connected' | 'error';
+const QR_POLL_INTERVAL_MS = 60000;
+const STATUS_POLL_INTERVAL_MS = 60000;
 
 export default function WhatsAppPage() {
   const [status, setStatus] = useState<any>(null);
@@ -25,6 +27,16 @@ export default function WhatsAppPage() {
   const [error, setError] = useState('');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isInitiating, setIsInitiating] = useState(false);
+  const lastQrFetchAtRef = useRef(0);
+  const qrRef = useRef<string | null>(null);
+  const generatePollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const clearGeneratePoll = useCallback(() => {
+    if (generatePollRef.current) {
+      clearInterval(generatePollRef.current);
+      generatePollRef.current = null;
+    }
+  }, []);
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -37,32 +49,58 @@ export default function WhatsAppPage() {
       if (st === 'connected') {
         setViewState('connected');
         setQr(null);
+        qrRef.current = null;
+        lastQrFetchAtRef.current = 0;
+        clearGeneratePoll();
       } else if (st === 'qr_ready') {
-        const qrRes = await whatsappApi.getQR().catch(() => null);
-        const qrCode = qrRes?.data?.qr || null;
-        setQr(qrCode);
-        setViewState(qrCode ? 'qr_ready' : 'qr_setup');
+        const shouldFetchQr =
+          !qrRef.current || Date.now() - lastQrFetchAtRef.current >= QR_POLL_INTERVAL_MS;
+
+        if (shouldFetchQr) {
+          const qrRes = await whatsappApi.getQR().catch(() => null);
+          const qrCode = qrRes?.data?.qr || null;
+
+          if (qrCode) {
+            lastQrFetchAtRef.current = Date.now();
+            setQr(qrCode);
+            qrRef.current = qrCode;
+            clearGeneratePoll();
+          }
+
+          setViewState(qrCode ? 'qr_ready' : 'qr_setup');
+        } else {
+          setViewState('qr_ready');
+        }
       } else if (st === 'connecting') {
         setViewState('connecting');
         setQr(null);
+        qrRef.current = null;
       } else if (st === 'error') {
         setViewState('error');
         setQr(null);
+        qrRef.current = null;
+        clearGeneratePoll();
       } else {
         // disconnected or null status — go directly to QR setup
         setViewState('qr_setup');
         setQr(null);
+        qrRef.current = null;
+        lastQrFetchAtRef.current = 0;
+        clearGeneratePoll();
       }
     } catch {
       setViewState('qr_setup');
     }
-  }, []);
+  }, [clearGeneratePoll]);
 
   useEffect(() => {
     fetchStatus();
-    const interval = setInterval(fetchStatus, 4000);
-    return () => clearInterval(interval);
-  }, [fetchStatus]);
+    const interval = setInterval(fetchStatus, STATUS_POLL_INTERVAL_MS);
+    return () => {
+      clearInterval(interval);
+      clearGeneratePoll();
+    };
+  }, [clearGeneratePoll, fetchStatus]);
 
   const handleAction = async (action: string, fn: () => Promise<any>) => {
     setActionLoading(action);
@@ -80,17 +118,26 @@ export default function WhatsAppPage() {
   const handleGenerateQR = async () => {
     setIsInitiating(true);
     setError('');
+    setQr(null);
+    qrRef.current = null;
+    lastQrFetchAtRef.current = 0;
+    clearGeneratePoll();
     try {
       await whatsappApi.reconnect();
+      await fetchStatus();
+
       // Poll until QR appears
       let tries = 0;
-      const poll = setInterval(async () => {
+      generatePollRef.current = setInterval(async () => {
         tries++;
         await fetchStatus();
-        if (tries > 12) clearInterval(poll);
+        if (tries > 12) {
+          clearGeneratePoll();
+        }
       }, 1500);
     } catch (err: any) {
       setError(err?.data?.message || err?.message || 'Failed to generate QR');
+      clearGeneratePoll();
     } finally {
       setIsInitiating(false);
     }

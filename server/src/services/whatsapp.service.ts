@@ -31,10 +31,8 @@ const sockets = new Map<string, WASocket>();
 const connectingStates = new Map<string, boolean>();
 const manualDisconnects = new Map<string, boolean>();
 const reconnectTimers = new Map<string, NodeJS.Timeout>();
-const connectionTimeouts = new Map<string, NodeJS.Timeout>();
 const reconnectAttempts = new Map<string, number>();
 const MAX_RECONNECT_ATTEMPTS = 5;
-const CONNECTION_TIMEOUT_MS = 30000;
 
 export async function initWhatsApp(instanceId: string = 'default'): Promise<void> {
   if (connectingStates.get(instanceId)) {
@@ -42,18 +40,6 @@ export async function initWhatsApp(instanceId: string = 'default'): Promise<void
   }
 
   connectingStates.set(instanceId, true);
-
-  // Start 30s connection timeout — if no QR or open connection, auto-delete
-  if (!connectionTimeouts.has(instanceId)) {
-    const timeout = setTimeout(async () => {
-      connectionTimeouts.delete(instanceId);
-      const inst = await WhatsAppInstance.findOne({ instanceId });
-      if (inst?.status === 'connected' || inst?.status === 'qr_ready') return;
-      logger.warn(`[${instanceId}] Connection timeout (30s) — auto-deleting stale session`);
-      await deleteSession(instanceId);
-    }, CONNECTION_TIMEOUT_MS);
-    connectionTimeouts.set(instanceId, timeout);
-  }
 
   try {
     const sessionDir = path.join(process.cwd(), env.SESSION_DIR, instanceId);
@@ -83,7 +69,9 @@ export async function initWhatsApp(instanceId: string = 'default'): Promise<void
       syncFullHistory: true,
       markOnlineOnConnect: true,
       generateHighQualityLinkPreview: false,
-      browser: Browsers.macOS('Desktop'),
+      // WhatsApp is currently rejecting fresh QR sessions advertised as Desktop clients.
+      // Using a regular web browser profile restores QR emission reliably.
+      browser: Browsers.ubuntu('Chrome'),
       retryRequestDelayMs: 200,
       defaultQueryTimeoutMs: 60000,
       getMessage: async (key) => {
@@ -102,9 +90,6 @@ export async function initWhatsApp(instanceId: string = 'default'): Promise<void
       const { connection, lastDisconnect, qr } = update;
 
       if (qr) {
-        // QR received — clear timeout and reset attempts (we're making progress)
-        const cto = connectionTimeouts.get(instanceId);
-        if (cto) { clearTimeout(cto); connectionTimeouts.delete(instanceId); }
         reconnectAttempts.set(instanceId, 0);
 
         const qrBase64 = await QRCode.toDataURL(qr);
@@ -122,8 +107,6 @@ export async function initWhatsApp(instanceId: string = 'default'): Promise<void
       if (connection === 'open') {
         connectingStates.set(instanceId, false);
         reconnectAttempts.set(instanceId, 0);
-        const cto = connectionTimeouts.get(instanceId);
-        if (cto) { clearTimeout(cto); connectionTimeouts.delete(instanceId); }
         const timer = reconnectTimers.get(instanceId);
         if (timer) {
           clearTimeout(timer);
@@ -173,6 +156,18 @@ export async function initWhatsApp(instanceId: string = 'default'): Promise<void
           );
         }
 
+        // Invalidated creds (logged out from the phone, expired link, etc.)
+        // must not survive on disk — the next connect attempt would just
+        // reuse them and silently die again with no QR.
+        if (isLoggedOut) {
+          const sessionDir = path.join(process.cwd(), env.SESSION_DIR, instanceId);
+          if (fs.existsSync(sessionDir)) {
+            try {
+              fs.rmSync(sessionDir, { recursive: true, force: true });
+            } catch {}
+          }
+        }
+
         waEvents.emit(`disconnected:${instanceId}`, { statusCode, shouldReconnect: isQrCycle });
 
         // Always reset manual flag after consuming it
@@ -184,7 +179,6 @@ export async function initWhatsApp(instanceId: string = 'default'): Promise<void
           if (attempts <= MAX_RECONNECT_ATTEMPTS) {
             scheduleReconnect(instanceId, 2000);
           }
-          // If over max attempts, the 30s timeout will auto-delete
         }
       }
     });
@@ -410,8 +404,6 @@ export async function disconnectWhatsApp(instanceId: string = 'default'): Promis
   // Clear all timers
   const timer = reconnectTimers.get(instanceId);
   if (timer) { clearTimeout(timer); reconnectTimers.delete(instanceId); }
-  const cto = connectionTimeouts.get(instanceId);
-  if (cto) { clearTimeout(cto); connectionTimeouts.delete(instanceId); }
   reconnectAttempts.delete(instanceId);
 
   const sock = sockets.get(instanceId);
@@ -423,6 +415,16 @@ export async function disconnectWhatsApp(instanceId: string = 'default'): Promis
     }
     sockets.delete(instanceId);
   }
+
+  // Logout invalidates creds server-side; stale auth files must go or the
+  // next connect attempt reuses them and never gets a fresh QR.
+  const sessionDir = path.join(process.cwd(), env.SESSION_DIR, instanceId);
+  if (fs.existsSync(sessionDir)) {
+    try {
+      fs.rmSync(sessionDir, { recursive: true, force: true });
+    } catch {}
+  }
+
   await WhatsAppInstance.findOneAndUpdate(
     { instanceId },
     {
@@ -434,14 +436,15 @@ export async function disconnectWhatsApp(instanceId: string = 'default'): Promis
       qrExpiresAt: null,
     }
   );
+
+  manualDisconnects.set(instanceId, false);
+  connectingStates.set(instanceId, false);
 }
 
 export async function restartWhatsApp(instanceId: string = 'default'): Promise<void> {
   // Clear all timers and counters
   const timer = reconnectTimers.get(instanceId);
   if (timer) { clearTimeout(timer); reconnectTimers.delete(instanceId); }
-  const cto = connectionTimeouts.get(instanceId);
-  if (cto) { clearTimeout(cto); connectionTimeouts.delete(instanceId); }
   reconnectAttempts.delete(instanceId);
 
   const sock = sockets.get(instanceId);
@@ -462,8 +465,6 @@ export async function deleteSession(instanceId: string = 'default'): Promise<voi
   // Clear all timers and counters
   const timer = reconnectTimers.get(instanceId);
   if (timer) { clearTimeout(timer); reconnectTimers.delete(instanceId); }
-  const cto = connectionTimeouts.get(instanceId);
-  if (cto) { clearTimeout(cto); connectionTimeouts.delete(instanceId); }
   reconnectAttempts.delete(instanceId);
 
   const sessionDir = path.join(process.cwd(), env.SESSION_DIR, instanceId);

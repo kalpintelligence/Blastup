@@ -30,7 +30,6 @@ const navSections = [
     items: [
       { href: '/docs', label: 'API Docs', icon: BookOpen },
       { href: '/settings', label: 'API Keys & Settings', icon: Key },
-      { href: '/logs', label: 'System Logs', icon: ScrollText },
     ],
   },
 ];
