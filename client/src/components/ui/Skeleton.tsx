@@ -118,7 +118,7 @@ export function Shimmer({
 }: {
   width?: string | number;
   height?: string | number;
-  radius?: number;
+  radius?: string | number;
   style?: React.CSSProperties;
 }) {
   return (
