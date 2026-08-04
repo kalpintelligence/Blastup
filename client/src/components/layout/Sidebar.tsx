@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Wifi, MessageSquare, Users,
-  Send, BookOpen, Key, ScrollText, LogOut
+  Send, Megaphone, BookOpen, Key, ScrollText, LogOut, Bot
 } from 'lucide-react';
 import { logout } from '@/lib/auth';
 
@@ -22,6 +22,8 @@ const navSections = [
     title: 'MESSAGING',
     items: [
       { href: '/contacts', label: 'Contacts', icon: Users },
+      { href: '/campaigns', label: 'Campaigns', icon: Megaphone },
+      { href: '/chatbot', label: 'Chatbot', icon: Bot },
       { href: '/send', label: 'Send Message', icon: Send },
     ],
   },

@@ -7,10 +7,17 @@
 
   /* Color Palette — Light Mode Only */
   --color-bg: #f5f7fa;
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f5f7fa;
+  --color-bg-tertiary: #edf0f4;
   --color-surface: #ffffff;
   --color-surface-hover: #f9fafb;
   --color-border: #e8ecef;
   --color-border-subtle: #f0f3f6;
+
+  /* Accent Color */
+  --color-accent: #6366f1;
+  --color-accent-hover: #4f52d6;
 
   /* Accent Colors — WhatsApp Vibrant Green (#33D951) */
   --color-primary: #33D951;
@@ -534,9 +541,13 @@ a {
 .text-sm { font-size: 13px; }
 .text-xs { font-size: 11px; }
 .text-secondary { color: var(--color-text-secondary); }
+.text-accent { color: var(--color-accent); }
+.text-primary-color { color: var(--color-primary); }
 .font-medium { font-weight: 500; }
 .font-semibold { font-weight: 600; }
 .font-bold { font-weight: 700; }
+.font-mono { font-family: 'Courier New', Courier, monospace; }
+
 
 /* ── Component Utilities ── */
 
@@ -557,6 +568,8 @@ a {
 .badge-danger, .badge-error { background-color: var(--color-danger-bg); color: var(--color-danger); border: 1px solid rgba(239, 68, 68, 0.2); }
 .badge-info { background-color: var(--color-info-bg); color: var(--color-info); border: 1px solid rgba(59, 130, 246, 0.2); }
 .badge-neutral { background-color: var(--color-bg); color: var(--color-text-secondary); border: 1px solid var(--color-border); }
+.badge-accent { background-color: rgba(99, 102, 241, 0.1); color: var(--color-accent); border: 1px solid rgba(99, 102, 241, 0.2); }
+
 
 /* Status Dot */
 .status-dot {
@@ -1188,12 +1201,38 @@ tr:hover td {
   border-radius: 50%;
 }
 
-.skeleton-profile-header .sk-info {
+
+/* ── Modal Backdrop Overlay ── */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 9999;
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  flex: 1;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.2s ease-out;
 }
+
+.modal-backdrop .card {
+  background-color: var(--color-surface, #ffffff) !important;
+  background: var(--color-surface, #ffffff) !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.3) !important;
+  border: 1px solid var(--color-border) !important;
+  opacity: 1 !important;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+
 
 
 

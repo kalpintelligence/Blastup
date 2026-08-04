@@ -102,17 +102,90 @@ export const chatsApi = {
 
 // ── Contacts ──────────────────────────────────────────────────────────
 export const contactsApi = {
-  list: (params?: { page?: number; limit?: number; search?: string }) =>
+  list: (params?: { page?: number; limit?: number; search?: string; group?: string }) =>
     request<{ success: boolean; data: any[]; pagination: any }>('/api/contacts', { params }),
 
   get: (jid: string) =>
     request<{ success: boolean; data: any }>(`/api/contacts/${encodeURIComponent(jid)}`),
+
+  getGroups: () =>
+    request<{ success: boolean; data: Array<{ name: string; count: number }> }>('/api/contacts/groups'),
+
+  importContacts: (contacts: Array<{ phone: string; name?: string; groups?: string[] }>, groups?: string[]) =>
+    request<{ success: boolean; data: { importedCount: number } }>('/api/contacts/import', {
+      method: 'POST',
+      body: JSON.stringify({ contacts, groups }),
+    }),
+
+  updateGroups: (jids: string[], groups: string[], action: 'add' | 'remove' = 'add') =>
+    request<{ success: boolean }>('/api/contacts/groups/update', {
+      method: 'POST',
+      body: JSON.stringify({ jids, groups, action }),
+    }),
+
+  update: (jid: string, data: { name?: string; phone?: string; groups?: string[] }) =>
+    request<{ success: boolean; data: any }>(`/api/contacts/${encodeURIComponent(jid)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+
+  delete: (jid: string) =>
+    request<{ success: boolean }>(`/api/contacts/${encodeURIComponent(jid)}`, { method: 'DELETE' }),
+};
+
+
+// ── Campaigns ─────────────────────────────────────────────────────────
+export const campaignsApi = {
+  list: (params?: { page?: number; limit?: number; status?: string }) =>
+    request<{ success: boolean; data: any[]; pagination: any }>('/api/campaigns', { params }),
+
+  get: (id: string) =>
+    request<{ success: boolean; data: any }>(`/api/campaigns/${id}`),
+
+  create: (data: {
+    name: string;
+    templateText: string;
+    mediaUrl?: string;
+    interactiveType?: 'none' | 'button' | 'slider';
+    buttons?: any[];
+    sliderItems?: any[];
+    targetGroups?: string[];
+    scheduledAt: string;
+  }) =>
+    request<{ success: boolean; data: any }>('/api/campaigns', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  getLogs: (id: string, params?: { page?: number; limit?: number; status?: string }) =>
+    request<{ success: boolean; data: any[]; pagination: any }>(`/api/campaigns/${id}/logs`, { params }),
+
+  reCampaign: (id: string, data: { name?: string; filterStatus: string; scheduledAt: string }) =>
+    request<{ success: boolean; data: any }>(`/api/campaigns/${id}/recampaign`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: string) =>
+    request<{ success: boolean }>(`/api/campaigns/${id}`, { method: 'DELETE' }),
 };
 
 // ── Send ──────────────────────────────────────────────────────────────
 export const sendApi = {
   text: (to: string, text: string) =>
     request('/api/send/text', { method: 'POST', body: JSON.stringify({ to, text }) }),
+
+  button: (to: string, text: string, buttons: any[], footer?: string) =>
+    request('/api/send/button', {
+      method: 'POST',
+      body: JSON.stringify({ to, text, buttons, footer }),
+    }),
+
+  slider: (to: string, title: string, text: string, items: any[], footer?: string) =>
+    request('/api/send/slider', {
+      method: 'POST',
+      body: JSON.stringify({ to, title, text, items, footer }),
+    }),
 
   media: (type: 'image' | 'video' | 'audio' | 'document', formData: FormData) => {
     // FormData — don't set Content-Type (browser sets it with boundary)
@@ -149,4 +222,23 @@ export const keysApi = {
   delete: (id: string) => request<{ success: boolean }>(`/api/keys/${id}`, { method: 'DELETE' }),
 };
 
+// ── Chatbot ───────────────────────────────────────────────────────────
+export const chatbotApi = {
+  get: () => request<{ success: boolean; data: any }>('/api/chatbot'),
+
+  update: (data: {
+    enabled: boolean;
+    welcomeMessage?: string;
+    fallbackMessage?: string;
+    position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
+    primaryColor?: string;
+    rules?: Array<{ keyword: string; response: string; matchType: 'exact' | 'contains' | 'startsWith' }>;
+  }) => request<{ success: boolean; data: any }>('/api/chatbot', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  }),
+};
+
 export { ApiError };
+
+

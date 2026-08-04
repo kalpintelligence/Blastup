@@ -3,12 +3,14 @@
 import { useState } from 'react';
 import Header from '@/components/layout/Header';
 import { sendApi } from '@/lib/api';
-import { Send, CheckCircle2, AlertCircle, Paperclip } from 'lucide-react';
+import { Send, CheckCircle2, AlertCircle, Paperclip, MousePointerClick, ShoppingBag } from 'lucide-react';
 
-type MessageType = 'text' | 'image' | 'video' | 'audio' | 'document';
+type MessageType = 'text' | 'button' | 'slider' | 'image' | 'video' | 'audio' | 'document';
 
 const TYPE_OPTIONS: { value: MessageType; label: string; accept?: string }[] = [
   { value: 'text', label: 'Text' },
+  { value: 'button', label: 'Button (Tap Continue)' },
+  { value: 'slider', label: 'eCommerce Slider' },
   { value: 'image', label: 'Image', accept: 'image/*' },
   { value: 'video', label: 'Video', accept: 'video/*' },
   { value: 'audio', label: 'Audio', accept: 'audio/*' },
@@ -20,7 +22,20 @@ export default function SendPage() {
   const [to, setTo] = useState('');
   const [text, setText] = useState('');
   const [caption, setCaption] = useState('');
+  const [footer, setFooter] = useState('Blastup Automation');
   const [file, setFile] = useState<File | null>(null);
+
+  // Button interactive state
+  const [buttonText, setButtonText] = useState('Tap Continue');
+  const [buttonUrl, setButtonUrl] = useState('https://example.com/continue');
+
+  // Slider interactive state
+  const [sliderTitle, setSliderTitle] = useState('Exclusive Product Catalog');
+  const [item1Title, setItem1Title] = useState('Wireless Noise-Cancelling Headphones');
+  const [item1Price, setItem1Price] = useState('$129.99');
+  const [item2Title, setItem2Title] = useState('Smart Fitness Watch Pro');
+  const [item2Price, setItem2Price] = useState('$89.99');
+
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
 
@@ -32,6 +47,27 @@ export default function SendPage() {
     try {
       if (type === 'text') {
         await sendApi.text(to.trim(), text.trim());
+      } else if (type === 'button') {
+        await sendApi.button(
+          to.trim(),
+          text.trim() || 'Tap Continue below to access your customized link:',
+          [
+            { type: 'url', displayText: buttonText.trim(), idOrUrl: buttonUrl.trim() },
+            { type: 'reply', displayText: 'More Options', idOrUrl: 'opt_more' },
+          ],
+          footer
+        );
+      } else if (type === 'slider') {
+        await sendApi.slider(
+          to.trim(),
+          sliderTitle,
+          text.trim() || 'Check out our top-selling items for this month:',
+          [
+            { title: item1Title, price: item1Price, description: 'Best-in-class audio experience', buttonText: 'Buy Now' },
+            { title: item2Title, price: item2Price, description: 'Track your health and daily goals', buttonText: 'Learn More' },
+          ],
+          footer
+        );
       } else {
         if (!file) throw new Error('Please select a file');
         const fd = new FormData();
@@ -55,9 +91,9 @@ export default function SendPage() {
 
   return (
     <>
-      <Header title="Send Message" subtitle="Send WhatsApp messages directly" />
+      <Header title="Send Message" subtitle="Send WhatsApp messages, customizable buttons & eCommerce sliders" />
       <div className="page-content">
-        <div style={{ maxWidth: 560 }}>
+        <div style={{ maxWidth: 640 }}>
           <div className="card">
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {/* Type selector */}
@@ -93,17 +129,90 @@ export default function SendPage() {
                 <span className="input-helper">International format without +. E.g. 919876543210</span>
               </div>
 
+              {/* Button customization */}
+              {type === 'button' && (
+                <div className="card" style={{ background: 'var(--color-bg-primary)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div className="flex items-center gap-2 font-semibold text-sm">
+                    <MousePointerClick size={16} className="text-accent" />
+                    <span>WhatsApp Tap Continue Button Options</span>
+                  </div>
+                  <div>
+                    <label className="input-label">Button Action Label</label>
+                    <input
+                      type="text"
+                      className="input"
+                      value={buttonText}
+                      onChange={(e) => setButtonText(e.target.value)}
+                      placeholder="e.g. Tap Continue"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="input-label">Destination URL</label>
+                    <input
+                      type="url"
+                      className="input"
+                      value={buttonUrl}
+                      onChange={(e) => setButtonUrl(e.target.value)}
+                      placeholder="https://..."
+                      required
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Slider customization */}
+              {type === 'slider' && (
+                <div className="card" style={{ background: 'var(--color-bg-primary)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div className="flex items-center gap-2 font-semibold text-sm">
+                    <ShoppingBag size={16} className="text-accent" />
+                    <span>eCommerce Carousel Cards</span>
+                  </div>
+                  <div>
+                    <label className="input-label">Catalog Title</label>
+                    <input
+                      type="text"
+                      className="input"
+                      value={sliderTitle}
+                      onChange={(e) => setSliderTitle(e.target.value)}
+                      placeholder="Showcase Title"
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="input-label">Product 1 Title</label>
+                      <input type="text" className="input" value={item1Title} onChange={(e) => setItem1Title(e.target.value)} />
+                    </div>
+                    <div>
+                      <label className="input-label">Price</label>
+                      <input type="text" className="input" value={item1Price} onChange={(e) => setItem1Price(e.target.value)} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="input-label">Product 2 Title</label>
+                      <input type="text" className="input" value={item2Title} onChange={(e) => setItem2Title(e.target.value)} />
+                    </div>
+                    <div>
+                      <label className="input-label">Price</label>
+                      <input type="text" className="input" value={item2Price} onChange={(e) => setItem2Price(e.target.value)} />
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Text content */}
-              {type === 'text' ? (
+              {(type === 'text' || type === 'button' || type === 'slider') ? (
                 <div className="input-group">
-                  <label className="input-label" htmlFor="send-text">Message</label>
+                  <label className="input-label" htmlFor="send-text">Main Body Message</label>
                   <textarea
                     id="send-text"
                     className="input"
                     placeholder="Type your message..."
                     value={text}
                     onChange={(e) => setText(e.target.value)}
-                    required
+                    required={type === 'text'}
                     rows={4}
                     style={{ resize: 'vertical' }}
                   />

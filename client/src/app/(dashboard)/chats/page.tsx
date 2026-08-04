@@ -6,6 +6,7 @@ import { chatsApi, sendApi } from '@/lib/api';
 import { SkeletonChatRow, Shimmer } from '@/components/ui/Skeleton';
 import { Search, Filter, MessageSquare, Send, CheckCheck, Phone, ShieldCheck, MoreVertical } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
+import { formatPhoneNumber } from '@/lib/format';
 
 export default function ChatsPage() {
   const [chats, setChats] = useState<any[]>([]);
@@ -93,8 +94,34 @@ export default function ChatsPage() {
     }
   };
 
+  const getChatDisplayName = (chat: any) => {
+    if (!chat) return 'WhatsApp Contact';
+    if (chat.name && chat.name !== '[unknown]' && chat.name !== 'unknown') return chat.name;
+    if (chat.pushName && chat.pushName !== '[unknown]' && chat.pushName !== 'unknown') return chat.pushName;
+    return formatPhoneNumber(chat.chatId || chat.jid || chat.phone);
+  };
+
+  const formatMessageContent = (msg: any) => {
+    if (!msg) return 'No messages yet';
+    const text = typeof msg === 'string' ? msg : msg.text || msg.caption || msg.content;
+    if (text && text !== '[unknown]' && text !== 'unknown') return text;
+
+    const type = ((typeof msg === 'object' && msg.type) || '').toLowerCase();
+    switch (type) {
+      case 'image': return '📷 Photo';
+      case 'video': return '🎥 Video';
+      case 'audio': return '🎵 Voice message';
+      case 'document': return '📄 Document';
+      case 'sticker': return '🎨 Sticker';
+      case 'location': return '📍 Location';
+      case 'button': return '⚡ Interactive message';
+      case 'slider': return '🛒 Product slider';
+      default: return '💬 Message';
+    }
+  };
+
   const getInitials = (name: string | null) => {
-    if (!name) return '?';
+    if (!name || name === '[unknown]' || name === 'unknown') return '?';
     return name.split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase();
   };
 
@@ -152,16 +179,16 @@ export default function ChatsPage() {
                     <div className="chat-avatar">
                       {chat.profilePicUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={chat.profilePicUrl} alt={chat.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <img src={chat.profilePicUrl} alt={getChatDisplayName(chat)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       ) : (
-                        getInitials(chat.name)
+                        getInitials(getChatDisplayName(chat))
                       )}
                     </div>
                     <div className="chat-info">
-                      <div className="chat-name">{chat.name || chat.chatId}</div>
+                      <div className="chat-name">{getChatDisplayName(chat)}</div>
                       <div className="chat-preview">
                         {chat.lastMessage?.fromMe && 'You: '}
-                        {chat.lastMessage?.content || 'No messages yet'}
+                        {formatMessageContent(chat.lastMessage)}
                       </div>
                     </div>
                     <div className="chat-meta">
@@ -192,13 +219,14 @@ export default function ChatsPage() {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={selectedChat.profilePicUrl} alt={selectedChat.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (
-                    getInitials(selectedChat.name)
+                    getInitials(selectedChat.name || formatPhoneNumber(selectedChat.chatId))
                   )}
                 </div>
                 <div>
-                  <div className="font-serif font-bold text-sm">{selectedChat.name || selectedChat.chatId}</div>
+                  <div className="font-serif font-bold text-sm">{selectedChat.name || formatPhoneNumber(selectedChat.chatId)}</div>
                   <div className="text-xs text-secondary flex items-center gap-1">
-                    <Phone size={10} /> {selectedChat.chatId}
+                    <Phone size={10} />
+                    <span>{formatPhoneNumber(selectedChat.chatId)}</span>
                   </div>
                 </div>
               </div>
@@ -234,7 +262,7 @@ export default function ChatsPage() {
                     className={`message-row ${msg.fromMe ? 'from-me' : 'from-them'}`}
                   >
                     <div className={`message-bubble ${msg.fromMe ? 'from-me' : 'from-them'}`}>
-                      <div>{msg.text || msg.caption || msg.content || `[${msg.type || 'Media'}]`}</div>
+                      <div>{formatMessageContent(msg)}</div>
                       <span className="message-time-stamp">
                         {msg.timestamp ? format(new Date(msg.timestamp), 'HH:mm') : ''}
                         {msg.fromMe && <CheckCheck size={13} style={{ color: '#53bdeb' }} />}
