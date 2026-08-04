@@ -19,6 +19,7 @@ import healthRoutes from './routes/health.routes';
 import apiKeyRoutes from './routes/apikey.routes';
 import campaignRoutes from './routes/campaign.routes';
 import chatbotRoutes from './routes/chatbot.routes';
+
 import { initCampaignScheduler } from './services/campaignScheduler';
 import { normalizeExistingDatabase } from './utils/jid';
 
@@ -27,70 +28,187 @@ import { env } from './config/env';
 export function createApp(): express.Application {
   const app = express();
 
-  // Initialize campaign background scheduler & DB normalization
+  // ── Initialize background services ──────────────────────────────
   initCampaignScheduler();
-  normalizeExistingDatabase().catch(() => {});
+  normalizeExistingDatabase().catch(() => { });
 
-  // ── Security middleware ──────────────────────────────────────────
+  // ── Security middleware ─────────────────────────────────────────
   applySecurity(app);
 
-  // ── Body parsers ─────────────────────────────────────────────────
+  // ── Body parsers ────────────────────────────────────────────────
   app.use(express.json({ limit: '1mb' }));
-  app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+  app.use(
+    express.urlencoded({
+      extended: true,
+      limit: '1mb',
+    })
+  );
   app.use(cookieParser());
 
-  // ── Compression ──────────────────────────────────────────────────
+  // ── Compression ────────────────────────────────────────────────
   app.use(compression());
 
-  // ── Static file serving (uploads) ────────────────────────────────
-  // Disable directory listing — serve individual files only by exact path
-  app.use('/uploads', express.static(path.resolve(env.UPLOAD_DIR), {
-    index: false,
-    dotfiles: 'deny',
-  }));
+  // ── Static file serving: uploads ────────────────────────────────
+  app.use(
+    '/uploads',
+    express.static(path.resolve(env.UPLOAD_DIR), {
+      index: false,
+      dotfiles: 'deny',
+    })
+  );
 
-  // ── Swagger API Docs ─────────────────────────────────────────────
+  // ── Static file serving: chatbot widget ─────────────────────────
+  //
+  // File:
+  // backend/public/widget.js
+  //
+  // URL:
+  // https://your-domain.com/widget.js
+  //
+  app.use(
+    '/widget.js',
+    express.static(
+      path.resolve(process.cwd(), 'public/widget.js'),
+      {
+        index: false,
+        dotfiles: 'deny',
+        fallthrough: false,
+        setHeaders: (res) => {
+          res.setHeader(
+            'Content-Type',
+            'application/javascript; charset=utf-8'
+          );
+
+          // Allow browser caching of widget.js
+          res.setHeader(
+            'Cache-Control',
+            'public, max-age=300'
+          );
+        },
+      }
+    )
+  );
+
+  // ── Swagger API Docs ────────────────────────────────────────────
   const swaggerSpec = swaggerJsdoc({
     definition: {
       openapi: '3.0.0',
+
       info: {
         title: 'WhatsApp Automation Platform API',
         version: '1.0.0',
-        description: 'Production-ready WhatsApp automation REST API',
+        description:
+          'Production-ready WhatsApp automation REST API',
       },
+
       components: {
         securitySchemes: {
           apiKeyAuth: {
             type: 'apiKey',
             in: 'header',
             name: 'x-api-key',
-            description: 'API Key from Settings > API Keys. Pass as x-api-key header.',
+            description:
+              'API Key from Settings > API Keys. Pass as x-api-key header.',
           },
         },
       },
-      security: [{ apiKeyAuth: [] }],
+
+      security: [
+        {
+          apiKeyAuth: [],
+        },
+      ],
     },
+
     apis: ['./src/routes/*.ts'],
   });
 
-  app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-  app.get('/api/docs.json', (req, res) => res.json(swaggerSpec));
+  app.use(
+    '/api/docs',
+    swaggerUi.serve,
+    swaggerUi.setup(swaggerSpec)
+  );
 
-  // ── API Routes ───────────────────────────────────────────────────
-  app.use('/api/health', healthRoutes);
-  app.use('/api/auth', authRoutes);
-  app.use('/api/whatsapp', apiLimiter, whatsappRoutes);
-  app.use('/api/chats', apiLimiter, chatRoutes);
-  app.use('/api/contacts', apiLimiter, contactRoutes);
-  app.use('/api/send', apiLimiter, sendRoutes);
-  app.use('/api/campaigns', apiLimiter, campaignRoutes);
-  app.use('/api/logs', apiLimiter, logRoutes);
-  app.use('/api/keys', apiLimiter, apiKeyRoutes);
-  app.use('/api/chatbot', apiLimiter, chatbotRoutes);
+  app.get(
+    '/api/docs.json',
+    (req, res) => res.json(swaggerSpec)
+  );
 
-  // ── Error Handling ───────────────────────────────────────────────
-  app.use(notFoundHandler);
-  app.use(errorHandler);
+  // ── API Routes ──────────────────────────────────────────────────
+
+  app.use(
+    '/api/health',
+    healthRoutes
+  );
+
+  app.use(
+    '/api/auth',
+    authRoutes
+  );
+
+  app.use(
+    '/api/whatsapp',
+    apiLimiter,
+    whatsappRoutes
+  );
+
+  app.use(
+    '/api/chats',
+    apiLimiter,
+    chatRoutes
+  );
+
+  app.use(
+    '/api/contacts',
+    apiLimiter,
+    contactRoutes
+  );
+
+  app.use(
+    '/api/send',
+    apiLimiter,
+    sendRoutes
+  );
+
+  app.use(
+    '/api/campaigns',
+    apiLimiter,
+    campaignRoutes
+  );
+
+  app.use(
+    '/api/logs',
+    apiLimiter,
+    logRoutes
+  );
+
+  app.use(
+    '/api/keys',
+    apiLimiter,
+    apiKeyRoutes
+  );
+
+  // ── Chatbot API ─────────────────────────────────────────────────
+  //
+  // Widget will call:
+  //
+  // POST /api/chatbot/message
+  //
+  app.use(
+    '/api/chatbot',
+    apiLimiter,
+    chatbotRoutes
+  );
+
+  // ── Error Handling ──────────────────────────────────────────────
+
+  app.use(
+    notFoundHandler
+  );
+
+  app.use(
+    errorHandler
+  );
 
   return app;
 }
