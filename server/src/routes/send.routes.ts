@@ -149,4 +149,142 @@ router.post('/audio', sendController.upload.single('file'), sendController.sendA
  */
 router.post('/document', sendController.upload.single('file'), sendController.sendDocument);
 
+const buttonSchema = z.object({
+  to: z.string().min(5).max(30),
+  text: z.string().min(1).max(4096),
+  footer: z.string().optional(),
+  buttons: z.array(
+    z.object({
+      type: z.enum(['reply', 'url', 'call']),
+      displayText: z.string().min(1).max(100),
+      idOrUrl: z.string().optional(),
+    })
+  ).min(1).max(5),
+});
+
+/**
+ * @swagger
+ * /api/send/button:
+ *   post:
+ *     summary: Send interactive button message (Tap Continue / Action buttons)
+ *     tags: [Send]
+ *     security:
+ *       - cookieAuth: []
+ *       - apiKeyAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [to, text, buttons]
+ *             properties:
+ *               to:
+ *                 type: string
+ *                 example: "1234567890"
+ *               text:
+ *                 type: string
+ *                 example: "Tap Continue to claim your exclusive discount offer!"
+ *               footer:
+ *                 type: string
+ *                 example: "Blastup Automation Platform"
+ *               buttons:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   required: [type, displayText]
+ *                   properties:
+ *                     type:
+ *                       type: string
+ *                       enum: [reply, url, call]
+ *                       example: "url"
+ *                     displayText:
+ *                       type: string
+ *                       example: "Tap Continue"
+ *                     idOrUrl:
+ *                       type: string
+ *                       example: "https://example.com/checkout"
+ *     responses:
+ *       200:
+ *         description: Button message sent successfully
++ */
+router.post('/button', validate(buttonSchema), sendController.sendButton);
+
+const sliderSchema = z.object({
+  to: z.string().min(5).max(30),
+  title: z.string().min(1).max(200),
+  text: z.string().min(1).max(4096),
+  footer: z.string().optional(),
+  items: z.array(
+    z.object({
+      title: z.string().min(1).max(200),
+      description: z.string().optional(),
+      imageUrl: z.string().optional(),
+      price: z.string().optional(),
+      buttonText: z.string().optional(),
+      buttonId: z.string().optional(),
+    })
+  ).min(1).max(10),
+});
+
+/**
+ * @swagger
+ * /api/send/slider:
+ *   post:
+ *     summary: Send eCommerce slider / carousel multi-card message
+ *     tags: [Send]
+ *     security:
+ *       - cookieAuth: []
+ *       - apiKeyAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [to, title, text, items]
+ *             properties:
+ *               to:
+ *                 type: string
+ *                 example: "1234567890"
+ *               title:
+ *                 type: string
+ *                 example: "Featured Product Showcase"
+ *               text:
+ *                 type: string
+ *                 example: "Check out our top recommended products for today:"
+ *               footer:
+ *                 type: string
+ *                 example: "Blastup Store"
+ *               items:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   required: [title]
+ *                   properties:
+ *                     title:
+ *                       type: string
+ *                       example: "Wireless Headphones X100"
+ *                     description:
+ *                       type: string
+ *                       example: "Noise cancelling bluetooth headphones"
+ *                     imageUrl:
+ *                       type: string
+ *                       example: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e"
+ *                     price:
+ *                       type: string
+ *                       example: "$99.99"
+ *                     buttonText:
+ *                       type: string
+ *                       example: "Buy Now"
+ *                     buttonId:
+ *                       type: string
+ *                       example: "prod_100"
+ *     responses:
+ *       200:
+ *         description: eCommerce slider message sent successfully
+ */
+router.post('/slider', validate(sliderSchema), sendController.sendSlider);
+
 export default router;
+

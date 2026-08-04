@@ -20,6 +20,7 @@ import { Contact } from '../models/Contact';
 import { Message } from '../models/Message';
 import { EventEmitter } from 'events';
 import pino from 'pino';
+import { normalizeJid } from '../utils/jid';
 
 export const waEvents = new EventEmitter();
 waEvents.setMaxListeners(100);
@@ -190,21 +191,24 @@ export async function initWhatsApp(instanceId: string = 'default'): Promise<void
         const contacts: any[] = data?.contacts ?? [];
 
         if (chats.length > 0) {
-          const chatOps = chats.map((chat: any) => ({
-            updateOne: {
-              filter: { chatId: chat.id, instanceId },
-              update: {
-                $set: {
-                  name: chat.name ?? null,
-                  unreadCount: chat.unreadCount ?? 0,
-                  isArchived: chat.archived ?? false,
-                  isPinned: !!chat.pinned,
-                  instanceId,
+          const chatOps = chats.map((chat: any) => {
+            const normalizedChatId = normalizeJid(chat.id);
+            return {
+              updateOne: {
+                filter: { chatId: normalizedChatId, instanceId },
+                update: {
+                  $set: {
+                    name: chat.name ?? null,
+                    unreadCount: chat.unreadCount ?? 0,
+                    isArchived: chat.archived ?? false,
+                    isPinned: !!chat.pinned,
+                    instanceId,
+                  },
                 },
+                upsert: true,
               },
-              upsert: true,
-            },
-          }));
+            };
+          });
           await Chat.bulkWrite(chatOps, { ordered: false });
           await WhatsAppInstance.findOneAndUpdate(
             { instanceId },
@@ -213,20 +217,24 @@ export async function initWhatsApp(instanceId: string = 'default'): Promise<void
         }
 
         if (contacts.length > 0) {
-          const contactOps = contacts.map((c: any) => ({
-            updateOne: {
-              filter: { jid: c.id, instanceId },
-              update: {
-                $set: {
-                  phone: c.id?.split('@')[0] ?? '',
-                  name: c.name ?? null,
-                  pushName: c.notify ?? null,
-                  instanceId,
+          const contactOps = contacts.map((c: any) => {
+            const normalizedJid = normalizeJid(c.id);
+            const phone = normalizedJid.split('@')[0];
+            return {
+              updateOne: {
+                filter: { jid: normalizedJid, instanceId },
+                update: {
+                  $set: {
+                    phone,
+                    name: c.name ?? null,
+                    pushName: c.notify ?? null,
+                    instanceId,
+                  },
                 },
+                upsert: true,
               },
-              upsert: true,
-            },
-          }));
+            };
+          });
           await Contact.bulkWrite(contactOps, { ordered: false });
           await WhatsAppInstance.findOneAndUpdate(
             { instanceId },
@@ -241,20 +249,24 @@ export async function initWhatsApp(instanceId: string = 'default'): Promise<void
     // Contacts upsert
     sock.ev.on('contacts.upsert', async (contacts) => {
       try {
-        const ops = contacts.map((c: any) => ({
-          updateOne: {
-            filter: { jid: c.id, instanceId },
-            update: {
-              $set: {
-                phone: c.id?.split('@')[0] ?? '',
-                name: c.name ?? null,
-                pushName: c.notify ?? null,
-                instanceId,
+        const ops = contacts.map((c: any) => {
+          const normalizedJid = normalizeJid(c.id);
+          const phone = normalizedJid.split('@')[0];
+          return {
+            updateOne: {
+              filter: { jid: normalizedJid, instanceId },
+              update: {
+                $set: {
+                  phone,
+                  name: c.name ?? null,
+                  pushName: c.notify ?? null,
+                  instanceId,
+                },
               },
+              upsert: true,
             },
-            upsert: true,
-          },
-        }));
+          };
+        });
         if (ops.length > 0) await Contact.bulkWrite(ops, { ordered: false });
       } catch (err) {
         logger.error(`[${instanceId}] Error upserting contacts`, { err });
@@ -295,13 +307,14 @@ export async function initWhatsApp(instanceId: string = 'default'): Promise<void
 }
 
 async function processIncomingMessage(instanceId: string, msg: proto.IWebMessageInfo, sock: WASocket): Promise<void> {
-  if (!msg.key.remoteJid || msg.key.fromMe) return;
+  if (!msg.key.remoteJid || msg.key.remoteJid === 'status@broadcast') return;
 
   const messageType = getMessageType(msg);
-  const chatId = msg.key.remoteJid;
+  const chatId = normalizeJid(msg.key.remoteJid);
   const msgId = msg.key.id!;
-  const timestamp = new Date((msg.messageTimestamp as number) * 1000);
+  const timestamp = new Date((msg.messageTimestamp as number) * 1000 || Date.now());
   const content = getMessageContent(msg);
+  const isFromMe = !!msg.key.fromMe;
 
   await Message.findOneAndUpdate(
     { msgId, instanceId },
@@ -310,13 +323,13 @@ async function processIncomingMessage(instanceId: string, msg: proto.IWebMessage
         msgId,
         chatId,
         instanceId,
-        from: msg.key.participant || chatId,
-        to: sock?.user?.id || '',
-        fromMe: msg.key.fromMe || false,
+        from: isFromMe ? normalizeJid(sock?.user?.id || '') : normalizeJid(msg.key.participant || msg.key.remoteJid),
+        to: isFromMe ? chatId : (sock?.user?.id ? normalizeJid(sock.user.id) : ''),
+        fromMe: isFromMe,
         type: messageType,
         text: content.text,
         caption: content.caption,
-        status: 'delivered',
+        status: isFromMe ? 'sent' : 'delivered',
         timestamp,
         rawMessage: msg.message as Record<string, unknown>,
       },
@@ -324,28 +337,100 @@ async function processIncomingMessage(instanceId: string, msg: proto.IWebMessage
     { upsert: true }
   );
 
+  const chatUpdate: any = {
+    $set: {
+      lastMessage: {
+        content: content.text || content.caption || `[${messageType}]`,
+        timestamp,
+        fromMe: isFromMe,
+        type: messageType,
+      },
+    },
+  };
+
+  if (!isFromMe) {
+    chatUpdate.$inc = { unreadCount: 1 };
+  }
+
   await Chat.findOneAndUpdate(
     { chatId, instanceId },
-    {
-      $set: {
-        lastMessage: {
-          content: content.text || content.caption || `[${messageType}]`,
-          timestamp,
-          fromMe: false,
-          type: messageType,
-        },
-      },
-      $inc: { unreadCount: 1 },
-    },
+    chatUpdate,
     { upsert: true }
   );
 
-  await WhatsAppInstance.findOneAndUpdate(
-    { instanceId },
-    { $inc: { messagesReceived: 1, messagesToday: 1 } }
-  );
+  if (isFromMe) {
+    await WhatsAppInstance.findOneAndUpdate({ instanceId }, { $inc: { messagesSent: 1, messagesToday: 1 } });
+  } else {
+    await WhatsAppInstance.findOneAndUpdate({ instanceId }, { $inc: { messagesReceived: 1, messagesToday: 1 } });
+    waEvents.emit(`message:${instanceId}`, { chatId, msgId, type: messageType });
 
-  waEvents.emit(`message:${instanceId}`, { chatId, msgId, type: messageType });
+    // Trigger Chatbot Auto-Responder if enabled
+    handleChatbotAutoResponse(instanceId, chatId, content.text || content.caption || '', sock).catch((e) =>
+      logger.error(`[${instanceId}] Chatbot auto-response error`, { e })
+    );
+  }
+}
+
+async function handleChatbotAutoResponse(instanceId: string, toJid: string, incomingText: string, sock: WASocket) {
+  try {
+    const { Chatbot } = await import('../models/Chatbot');
+    const chatbot = await Chatbot.findOne({ instanceId, enabled: true }).lean();
+    if (!chatbot || !incomingText) return;
+
+    const lowerText = incomingText.toLowerCase().trim();
+    let reply: string | null = null;
+
+    for (const rule of chatbot.rules) {
+      const kw = rule.keyword.toLowerCase().trim();
+      if (!kw) continue;
+      let matched = false;
+      if (rule.matchType === 'exact' && lowerText === kw) matched = true;
+      else if (rule.matchType === 'startsWith' && lowerText.startsWith(kw)) matched = true;
+      else if (rule.matchType === 'contains' && lowerText.includes(kw)) matched = true;
+
+      if (matched) {
+        reply = rule.response;
+        break;
+      }
+    }
+
+    if (!reply && chatbot.fallbackMessage) {
+      reply = chatbot.fallbackMessage;
+    }
+
+    if (reply) {
+      const normalizedTo = normalizeJid(toJid);
+      const res = await sock.sendMessage(normalizedTo, { text: reply });
+      await Message.create({
+        msgId: res?.key?.id || 'bot_' + Date.now(),
+        chatId: normalizedTo,
+        instanceId,
+        from: sock?.user?.id || 'chatbot',
+        to: normalizedTo,
+        fromMe: true,
+        type: 'text',
+        text: reply,
+        status: 'sent',
+        timestamp: new Date(),
+      });
+      await Chat.findOneAndUpdate(
+        { chatId: normalizedTo, instanceId },
+        {
+          $set: {
+            lastMessage: {
+              content: reply,
+              timestamp: new Date(),
+              fromMe: true,
+              type: 'text',
+            },
+          },
+        },
+        { upsert: true }
+      );
+    }
+  } catch (err) {
+    logger.error(`[${instanceId}] Error in chatbot auto response`, { err });
+  }
 }
 
 function getMessageType(msg: proto.IWebMessageInfo): string {

@@ -117,3 +117,26 @@ export async function sendDocument(req: AuthRequest, res: Response, next: NextFu
     next(err);
   }
 }
+
+export async function sendButton(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const instanceId = req.user?.id || 'default';
+    const { to, text, footer, buttons } = req.body;
+    const result = await messageService.sendButton(instanceId, { to, text, footer, buttons: buttons || [] });
+    res.json({ success: true, data: { messageId: result?.key.id } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function sendSlider(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const instanceId = req.user?.id || 'default';
+    const { to, title, text, footer, items } = req.body;
+    const result = await messageService.sendSlider(instanceId, { to, title, text, footer, items: items || [] });
+    res.json({ success: true, data: { messageId: result?.key.id } });
+  } catch (err) {
+    next(err);
+  }
+}
+

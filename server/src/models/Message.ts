@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
-export type MessageType = 'text' | 'image' | 'video' | 'audio' | 'document' | 'sticker' | 'reaction' | 'location' | 'contact' | 'poll' | 'unknown';
+export type MessageType = 'text' | 'image' | 'video' | 'audio' | 'document' | 'sticker' | 'reaction' | 'location' | 'contact' | 'poll' | 'button' | 'slider' | 'interactive' | 'template' | 'list' | 'unknown';
 export type MessageStatus = 'pending' | 'sent' | 'delivered' | 'read' | 'failed';
 
 export interface IMessage extends Document {
@@ -42,7 +42,7 @@ const messageSchema = new Schema<IMessage>(
     fromMe: { type: Boolean, default: false },
     type: {
       type: String,
-      enum: ['text', 'image', 'video', 'audio', 'document', 'sticker', 'reaction', 'location', 'contact', 'poll', 'unknown'],
+      enum: ['text', 'image', 'video', 'audio', 'document', 'sticker', 'reaction', 'location', 'contact', 'poll', 'button', 'slider', 'interactive', 'template', 'list', 'unknown'],
       default: 'text',
     },
     text: { type: String, default: null },

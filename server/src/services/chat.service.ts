@@ -1,6 +1,7 @@
 import { Chat } from '../models/Chat';
 import { Message } from '../models/Message';
 import { parsePagination, buildPaginatedResult } from '../utils/pagination';
+import { normalizeJid } from '../utils/jid';
 
 export async function listChats(instanceId: string, query: Record<string, unknown>) {
   const { page, limit, skip } = parsePagination(query);
@@ -24,13 +25,23 @@ export async function listChats(instanceId: string, query: Record<string, unknow
 }
 
 export async function getChatById(instanceId: string, chatId: string) {
-  return Chat.findOne({ chatId, instanceId }).lean();
+  const normalized = normalizeJid(chatId);
+  return Chat.findOne({
+    $or: [{ chatId }, { chatId: normalized }],
+    instanceId,
+  }).lean();
 }
 
 export async function getMessages(instanceId: string, chatId: string, query: Record<string, unknown>) {
   const { page, limit, skip } = parsePagination(query);
 
-  const filter = { chatId, instanceId, isDeleted: false };
+  const normalized = normalizeJid(chatId);
+  // Only match the specific chatId (exact or normalized) - do NOT match by from/to which causes duplicates
+  const filter = {
+    instanceId,
+    isDeleted: false,
+    chatId: { $in: [chatId, normalized] },
+  };
 
   const [data, total] = await Promise.all([
     Message.find(filter)
@@ -46,8 +57,9 @@ export async function getMessages(instanceId: string, chatId: string, query: Rec
 }
 
 export async function markChatRead(instanceId: string, chatId: string) {
+  const normalized = normalizeJid(chatId);
   return Chat.findOneAndUpdate(
-    { chatId, instanceId },
+    { $or: [{ chatId }, { chatId: normalized }], instanceId },
     { unreadCount: 0 },
     { new: true }
   );

@@ -9,6 +9,7 @@ export interface IContact extends Document {
   isBlocked: boolean;
   isBusiness: boolean;
   about: string | null;
+  groups: string[];
   instanceId: string;
   createdAt: Date;
   updatedAt: Date;
@@ -31,6 +32,7 @@ const contactSchema = new Schema<IContact>(
     isBlocked: { type: Boolean, default: false },
     isBusiness: { type: Boolean, default: false },
     about: { type: String, default: null },
+    groups: { type: [String], default: [] },
     instanceId: {
       type: String,
       required: true,
@@ -45,6 +47,7 @@ const contactSchema = new Schema<IContact>(
 
 // Unique per instance
 contactSchema.index({ jid: 1, instanceId: 1 }, { unique: true });
+contactSchema.index({ groups: 1 });
 // Text search
 contactSchema.index({ name: 'text', pushName: 'text', phone: 'text' });
 

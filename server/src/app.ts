@@ -17,11 +17,19 @@ import sendRoutes from './routes/send.routes';
 import logRoutes from './routes/log.routes';
 import healthRoutes from './routes/health.routes';
 import apiKeyRoutes from './routes/apikey.routes';
+import campaignRoutes from './routes/campaign.routes';
+import chatbotRoutes from './routes/chatbot.routes';
+import { initCampaignScheduler } from './services/campaignScheduler';
+import { normalizeExistingDatabase } from './utils/jid';
 
 import { env } from './config/env';
 
 export function createApp(): express.Application {
   const app = express();
+
+  // Initialize campaign background scheduler & DB normalization
+  initCampaignScheduler();
+  normalizeExistingDatabase().catch(() => {});
 
   // ── Security middleware ──────────────────────────────────────────
   applySecurity(app);
@@ -52,19 +60,15 @@ export function createApp(): express.Application {
       },
       components: {
         securitySchemes: {
-          cookieAuth: {
-            type: 'apiKey',
-            in: 'cookie',
-            name: 'wa_token',
-          },
           apiKeyAuth: {
             type: 'apiKey',
             in: 'header',
             name: 'x-api-key',
+            description: 'API Key from Settings > API Keys. Pass as x-api-key header.',
           },
         },
       },
-      security: [{ cookieAuth: [] }, { apiKeyAuth: [] }],
+      security: [{ apiKeyAuth: [] }],
     },
     apis: ['./src/routes/*.ts'],
   });
@@ -79,8 +83,10 @@ export function createApp(): express.Application {
   app.use('/api/chats', apiLimiter, chatRoutes);
   app.use('/api/contacts', apiLimiter, contactRoutes);
   app.use('/api/send', apiLimiter, sendRoutes);
+  app.use('/api/campaigns', apiLimiter, campaignRoutes);
   app.use('/api/logs', apiLimiter, logRoutes);
   app.use('/api/keys', apiLimiter, apiKeyRoutes);
+  app.use('/api/chatbot', apiLimiter, chatbotRoutes);
 
   // ── Error Handling ───────────────────────────────────────────────
   app.use(notFoundHandler);
