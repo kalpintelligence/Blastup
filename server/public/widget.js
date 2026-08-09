@@ -68,20 +68,25 @@
 
     if (!apiUrl) {
         console.error(
-            '[Blastup Widget] apiUrl is missing from window.BlastupConfig'
+            '[Blastup Widget] ❌ apiUrl is missing from window.BlastupConfig'
         );
-
         return;
     }
 
     if (!chatbotId) {
         console.error(
-            '[Blastup Widget] chatbotId is missing from window.BlastupConfig'
+            '[Blastup Widget] ❌ chatbotId is missing from window.BlastupConfig'
         );
-
         return;
     }
 
+    console.log(
+        '[Blastup Widget] ✅ Initialized',
+        '\n  apiUrl    :', apiUrl,
+        '\n  chatbotId :', chatbotId,
+        '\n  endpoint  :', apiUrl + '/api/chatbot/message',
+        '\n  pageOrigin:', window.location.origin
+    );
 
     // ------------------------------------------------------------
     // PREVENT DUPLICATE WIDGET
@@ -1258,59 +1263,46 @@
          */
 
 
-        var endpoint =
-            apiUrl +
-            '/api/chatbot/message';
+        var endpoint = apiUrl + '/api/chatbot/message';
 
+        console.log('[Blastup Widget] 📤 Sending message:', {
+            endpoint,
+            chatbotId,
+            message,
+            sessionId,
+            pageOrigin: window.location.origin
+        });
 
         var headers = {
             'Content-Type': 'application/json'
         };
 
-
-        var response =
-            await fetch(
+        var response;
+        try {
+            response = await fetch(
                 endpoint,
                 {
                     method: 'POST',
-
                     headers: headers,
-
                     credentials: 'omit',
-
-                    body:
-                        JSON.stringify({
-
-                            message:
-                                message,
-
-                            text:
-                                message,
-
-                            sessionId:
-                                sessionId,
-
-                            source:
-                                'website-widget',
-
-                            url:
-                                window.location.href,
-
-                            pageUrl:
-                                window.location.href,
-
-                            origin:
-                                window.location.origin,
-
-                            chatbotId:
-                                chatbotId
-
-                        })
+                    body: JSON.stringify({
+                        message,
+                        text: message,
+                        sessionId,
+                        source: 'website-widget',
+                        url: window.location.href,
+                        pageUrl: window.location.href,
+                        origin: window.location.origin,
+                        chatbotId
+                    })
                 }
             );
-
-
-        var data = {};
+            console.log('[Blastup Widget] ✅ Response status:', response.status, response.statusText);
+        } catch (fetchError) {
+            console.error('[Blastup Widget] ❌ FETCH FAILED (likely CORS block or network error):', fetchError);
+            console.error('[Blastup Widget]    → Check that', endpoint, 'returns Access-Control-Allow-Origin: *');
+            throw fetchError;
+        }
 
 
         try {
