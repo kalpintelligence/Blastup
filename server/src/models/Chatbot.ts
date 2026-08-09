@@ -25,8 +25,6 @@ export interface IChatbot extends Document {
   gradientAngle: number;
   position: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
   theme: 'classic' | 'glassmorphic';
-  // Domains
-  whitelistedDomains: string[];
   // Rules
   rules: IChatbotRule[];
   // Lead Collection
@@ -85,9 +83,6 @@ const chatbotSchema = new Schema<IChatbot>(
       enum: ['classic', 'glassmorphic'],
       default: 'glassmorphic',
     },
-    // Domains
-    whitelistedDomains: { type: [String], default: [] },
-    // Rules
     rules: { type: [chatbotRuleSchema], default: [] },
     // Lead Collection
     collectLeads: { type: Boolean, default: false },

@@ -2,7 +2,7 @@
 
 > **A production-ready, highly secure, and scalable self-hosted WhatsApp automation platform.** Built with Next.js, Node.js/Express, MongoDB, and Baileys.
 
-![License](https://img.shields.io/badge/license-Private-blue)
+![License](https://img.shields.io/badge/license-MIT-blue)
 ![Stack](https://img.shields.io/badge/stack-Next.js%20%7C%20Express%20%7C%20MongoDB-green)
 
 ---
@@ -228,4 +228,6 @@ curl -X POST http://localhost:3001/api/send/image \
 
 ## 📄 License
 
-This software is for private, self-hosted use. It is not affiliated with, endorsed, or sponsored by WhatsApp or Meta Platforms, Inc. Usage of this software must comply with WhatsApp's Terms of Service.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+It is not affiliated with, endorsed, or sponsored by WhatsApp or Meta Platforms, Inc. Usage of this software must comply with WhatsApp's Terms of Service.

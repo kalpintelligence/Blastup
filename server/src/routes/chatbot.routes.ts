@@ -6,7 +6,7 @@ import cors from 'cors';
 
 const router = Router();
 
-// ── Public Widget Endpoints (CORS open, domain whitelist enforced in controller) ──
+// ── Public Widget Endpoints (CORS open, chatbot ID enforced in controller) ──
 router.options('/message', cors({ origin: '*' }));
 router.post('/message', cors({ origin: '*' }), chatbotController.handleWidgetMessage);
 

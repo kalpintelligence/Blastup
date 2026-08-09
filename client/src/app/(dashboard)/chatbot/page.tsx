@@ -17,14 +17,13 @@ interface ChatbotRule {
   matchType: 'exact' | 'contains' | 'startsWith';
 }
 
-type Tab = 'settings' | 'appearance' | 'rules' | 'domains' | 'preview' | 'embed' | 'knowledge';
+type Tab = 'settings' | 'appearance' | 'rules' | 'preview' | 'embed' | 'knowledge';
 
 const TABS: { key: Tab; label: string; icon: any }[] = [
   { key: 'settings', label: 'Bot Identity & Settings', icon: Settings },
   { key: 'appearance', label: 'Appearance & Themes', icon: Palette },
   { key: 'rules', label: 'Auto-Reply Rules', icon: Zap },
   { key: 'knowledge', label: 'Company Knowledge', icon: BookOpen },
-  { key: 'domains', label: 'Domains & Security', icon: Globe },
   { key: 'preview', label: 'Test Simulator', icon: Eye },
   { key: 'embed', label: 'Embed Widget', icon: Code2 },
 ];
@@ -84,9 +83,8 @@ export default function ChatbotPage() {
   const [position, setPosition] = useState<'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'>('bottom-right');
   const [theme, setTheme] = useState<'classic' | 'glassmorphic'>('glassmorphic');
 
-  // Domains
-  const [whitelistedDomains, setWhitelistedDomains] = useState<string[]>([]);
-  const [newDomain, setNewDomain] = useState('');
+  // Chatbot ID
+  const [chatbotId, setChatbotId] = useState<string>('');
 
   // Rules
   const [rules, setRules] = useState<ChatbotRule[]>([]);
@@ -159,7 +157,7 @@ export default function ChatbotPage() {
         setGradientAngle(d.gradientAngle !== undefined ? d.gradientAngle : 135);
         setPosition(d.position || 'bottom-right');
         setTheme(d.theme || 'glassmorphic');
-        setWhitelistedDomains(d.whitelistedDomains || []);
+        setChatbotId(d._id || '');
         setRules(d.rules || []);
         setCollectLeads(d.collectLeads || false);
         setLeadFields(d.leadFields || ['name', 'email']);
@@ -186,7 +184,7 @@ export default function ChatbotPage() {
         enabled, botName, botIcon, welcomeMessage, fallbackMessage, offlineMessage,
         headerText, subHeaderText, buttonLabel,
         primaryColor, secondaryColor, gradient, gradientAngle, position, theme,
-        whitelistedDomains, rules, collectLeads, leadFields,
+        rules, collectLeads, leadFields,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
@@ -196,17 +194,6 @@ export default function ChatbotPage() {
       setSaving(false);
     }
   };
-
-  // Domain management
-  const handleAddDomain = () => {
-    const d = newDomain.trim().toLowerCase()
-      .replace(/^https?:\/\//, '')
-      .replace(/\/.*$/, '');
-    if (!d || whitelistedDomains.includes(d)) return;
-    setWhitelistedDomains([...whitelistedDomains, d]);
-    setNewDomain('');
-  };
-  const handleRemoveDomain = (d: string) => setWhitelistedDomains(whitelistedDomains.filter(x => x !== d));
 
   // Rules
   const handleAddRule = () => setRules([...rules, { keyword: '', response: '', matchType: 'contains' }]);
@@ -383,6 +370,7 @@ export default function ChatbotPage() {
     `    collectLeads: ${collectLeads},`,
     `    leadFields: ${JSON.stringify(leadFields)},`,
     `    theme: '${theme}',`,
+    `    chatbotId: '${chatbotId}',`,
     '  };',
     sClose,
     `\x3Cscript src="${backendUrl}/widget.js" async\x3E${sClose}`,
@@ -395,8 +383,7 @@ export default function ChatbotPage() {
     { n: 1, label: 'Identity', desc: 'Set name & welcome prompt', tab: 'settings' as Tab, isComplete: botName.trim().length > 0 && welcomeMessage.trim().length > 0 },
     { n: 2, label: 'Appearance', desc: 'Set branding & style', tab: 'appearance' as Tab, isComplete: !!primaryColor },
     { n: 3, label: 'Auto-Reply Rules', desc: 'Add response keywords', tab: 'rules' as Tab, isComplete: rules.length > 0 },
-    { n: 4, label: 'Whitelist Domains', desc: 'Add widget domains', tab: 'domains' as Tab, isComplete: whitelistedDomains.length > 0 },
-    { n: 5, label: 'Copy & Embed', desc: 'Integrate into website', tab: 'embed' as Tab, isComplete: copied || whitelistedDomains.length > 0 },
+    { n: 4, label: 'Copy & Embed', desc: 'Integrate into website', tab: 'embed' as Tab, isComplete: copied },
   ];
   const completedCount = steps.filter(s => s.isComplete).length;
   const completionPercentage = Math.round((completedCount / steps.length) * 100);
@@ -547,7 +534,7 @@ export default function ChatbotPage() {
               <div className="font-semibold" style={{ fontSize: 16, marginBottom: 4 }}>{botName} Auto-Responder</div>
               <div className="text-xs text-secondary">
                 {enabled
-                  ? '🟢 Active • ' + rules.length + ' rules • ' + whitelistedDomains.length + ' domains'
+                  ? '🟢 Active • ' + rules.length + ' rules'
                   : '⚫ Inactive — enable to start auto-responding'}
               </div>
             </div>
@@ -601,11 +588,6 @@ export default function ChatbotPage() {
               {key === 'rules' && rules.length > 0 && (
                 <span style={{ background: 'var(--color-primary)', color: 'white', borderRadius: 20, padding: '1px 7px', fontSize: 10, fontWeight: 700 }}>
                   {rules.length}
-                </span>
-              )}
-              {key === 'domains' && whitelistedDomains.length > 0 && (
-                <span style={{ background: 'var(--color-primary)', color: 'white', borderRadius: 20, padding: '1px 7px', fontSize: 10, fontWeight: 700 }}>
-                  {whitelistedDomains.length}
                 </span>
               )}
             </button>
@@ -1195,74 +1177,6 @@ export default function ChatbotPage() {
           </div>
         )}
 
-        {/* ══════════════════════════════════════════ DOMAINS TAB ══ */}
-        {activeTab === 'domains' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            <div className="card" style={{ background: 'var(--color-bg-secondary)' }}>
-              <h3 className="font-semibold" style={{ marginBottom: 6, fontSize: 15, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Globe size={16} className="text-accent" /> Domain Whitelist
-              </h3>
-              <p className="text-sm text-secondary" style={{ marginBottom: 20 }}>
-                The chatbot widget will only activate on these domains. Add each domain separately — no protocol (http/https) needed.
-              </p>
-              <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
-                <input
-                  type="text"
-                  className="input"
-                  placeholder="e.g. my-store.com or staging.example.org"
-                  value={newDomain}
-                  onChange={e => setNewDomain(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleAddDomain()}
-                  style={{ flex: 1 }}
-                />
-                <button className="btn btn-primary flex items-center gap-2" onClick={handleAddDomain} style={{ flexShrink: 0 }}>
-                  <Plus size={15} /> Add Domain
-                </button>
-              </div>
-
-              {whitelistedDomains.length === 0 ? (
-                <div style={{ padding: '32px 20px', textAlign: 'center', border: '2px dashed var(--color-border)', borderRadius: 12 }}>
-                  <Globe size={32} style={{ color: 'var(--color-text-tertiary)', margin: '0 auto 12px' }} />
-                  <p className="text-secondary text-sm">No domains added yet.</p>
-                  <p className="text-xs text-secondary" style={{ marginTop: 4 }}>Add your first domain above to enable the widget embed.</p>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {whitelistedDomains.map((d, i) => (
-                    <div key={d} style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      padding: '12px 16px', borderRadius: 10, gap: 12,
-                      background: 'var(--color-bg-primary)',
-                      border: '1px solid var(--color-border)',
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg, rgba(37,211,102,0.15), rgba(18,140,126,0.1))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <Globe size={14} style={{ color: 'var(--color-primary)' }} />
-                        </div>
-                        <div>
-                          <div className="font-semibold text-sm">{d}</div>
-                          <div className="text-xs text-secondary">Whitelisted domain #{i + 1}</div>
-                        </div>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 20, background: 'var(--color-primary-light)', color: 'var(--color-primary)', fontWeight: 600 }}>
-                          ✓ Active
-                        </span>
-                        <button
-                          onClick={() => handleRemoveDomain(d)}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-danger)', opacity: 0.7, display: 'flex', alignItems: 'center', padding: 4 }}
-                        >
-                          <X size={15} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
         {/* ══════════════════════════════════════════ PREVIEW TAB ══ */}
         {activeTab === 'preview' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -1712,20 +1626,7 @@ export default function ChatbotPage() {
         {/* ══════════════════════════════════════════ EMBED TAB ══ */}
         {activeTab === 'embed' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {whitelistedDomains.length === 0 ? (
-              <div className="card" style={{ padding: '48px 20px', textAlign: 'center', background: 'var(--color-bg-secondary)' }}>
-                <Globe size={44} style={{ margin: '0 auto 14px', color: 'var(--color-text-tertiary)' }} />
-                <h3 className="font-semibold" style={{ marginBottom: 10 }}>Domain Whitelist Required</h3>
-                <p className="text-secondary text-sm" style={{ maxWidth: 400, margin: '0 auto 20px' }}>
-                  Add at least one domain in the <strong>Domains & Security</strong> tab before generating your embed code.
-                </p>
-                <button className="btn btn-primary btn-sm flex items-center gap-2" style={{ margin: '0 auto' }} onClick={() => setActiveTab('domains')}>
-                  <Globe size={14} /> Go to Domains
-                </button>
-              </div>
-            ) : (
-              <>
-                <div className="card" style={{ background: 'linear-gradient(135deg, #0a0a1a 0%, #111827 100%)', border: '1px solid rgba(255,255,255,0.08)', padding: 32, position: 'relative', overflow: 'hidden' }}>
+            <div className="card" style={{ background: 'linear-gradient(135deg, #0a0a1a 0%, #111827 100%)', border: '1px solid rgba(255,255,255,0.08)', padding: 32, position: 'relative', overflow: 'hidden' }}>
                   <div style={{ position: 'absolute', top: -60, right: -60, width: 200, height: 200, background: 'radial-gradient(circle, ' + primaryColor + '25 0%, transparent 70%)', borderRadius: '50%' }} />
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
                     <Globe size={20} style={{ color: primaryColor }} />
@@ -1733,7 +1634,6 @@ export default function ChatbotPage() {
                   </div>
                   <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, marginBottom: 20 }}>
                     Paste this snippet just before the closing body tag.
-                    Works on all domains you whitelisted.
                   </p>
                   <div style={{ position: 'relative' }}>
                     <pre style={{ background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: 18, color: '#a8ff78', fontSize: 12, lineHeight: 1.7, overflowX: 'auto', fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
@@ -1755,7 +1655,7 @@ export default function ChatbotPage() {
                     {[
                       { n: 1, title: 'Copy the snippet above', desc: 'Click Copy and grab the embed code.' },
                       { n: 2, title: 'Paste before closing body tag', desc: 'Add it to every page where you want the widget to appear.' },
-                      { n: 3, title: 'Save & deploy your site', desc: 'The widget auto-activates on your whitelisted domains.' },
+                      { n: 3, title: 'Save & deploy your site', desc: 'The widget is now active on your site.' },
                     ].map(item => (
                       <div key={item.n} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                         <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'linear-gradient(135deg, var(--color-primary), var(--color-accent))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
@@ -1769,8 +1669,6 @@ export default function ChatbotPage() {
                     ))}
                   </div>
                 </div>
-              </>
-            )}
           </div>
         )}
 

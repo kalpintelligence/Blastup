@@ -29,7 +29,6 @@ export async function getChatbot(req: AuthRequest, res: Response, next: NextFunc
         gradientAngle: 135,
         position: 'bottom-right',
         theme: 'glassmorphic',
-        whitelistedDomains: [],
         rules: [],
         collectLeads: false,
         leadFields: ['name', 'email'],
@@ -51,7 +50,7 @@ export async function updateChatbot(req: AuthRequest, res: Response, next: NextF
       enabled, botName, botIcon, welcomeMessage, fallbackMessage, offlineMessage,
       headerText, subHeaderText, buttonLabel,
       primaryColor, secondaryColor, gradient, gradientAngle, position, theme,
-      whitelistedDomains, rules, collectLeads, leadFields,
+      rules, collectLeads, leadFields,
     } = req.body;
 
     const chatbot = await Chatbot.findOneAndUpdate(
@@ -73,7 +72,6 @@ export async function updateChatbot(req: AuthRequest, res: Response, next: NextF
           gradientAngle: gradientAngle !== undefined ? Number(gradientAngle) : 135,
           position: position || 'bottom-right',
           theme: theme || 'glassmorphic',
-          whitelistedDomains: Array.isArray(whitelistedDomains) ? whitelistedDomains : [],
           rules: rules || [],
           collectLeads: collectLeads !== undefined ? collectLeads : false,
           leadFields: Array.isArray(leadFields) ? leadFields : ['name', 'email'],
@@ -90,49 +88,21 @@ export async function updateChatbot(req: AuthRequest, res: Response, next: NextF
 
 export async function handleWidgetMessage(req: Request, res: Response, next: NextFunction) {
   try {
-    const { message, url, sessionId, capturedData } = req.body;
-    let origin = req.headers.origin || req.headers.referer;
+    const { message, url, sessionId, capturedData, chatbotId } = req.body;
 
-    if (origin === 'null') {
-      origin = undefined;
-    }
-
-    // Clean up origin — extract hostname
-    if (origin) {
-      try {
-        const originUrl = new URL(origin);
-        origin = originUrl.hostname;
-      } catch {
-        // Leave as is
-      }
-    }
-
-    if (!origin && url) {
-      if (url.startsWith('file://')) {
-        origin = 'localhost';
-      } else {
-        try {
-          const parsedUrl = new URL(url);
-          origin = parsedUrl.hostname;
-        } catch {
-          // Leave as is
-        }
-      }
-    }
-
-    if (!origin) {
-      res.status(401).json({ success: false, error: 'Unauthorized', message: 'No valid origin found' });
+    if (!chatbotId) {
+      res.status(401).json({ success: false, error: 'Unauthorized', message: 'No valid chatbotId found' });
       return;
     }
 
-    // Find a chatbot configuration that has this origin in its whitelisted domains
+    // Find a chatbot configuration with this id
     const chatbot = await Chatbot.findOne({
-      enabled: true,
-      whitelistedDomains: { $in: [origin] }
+      _id: chatbotId,
+      enabled: true
     }).lean();
 
     if (!chatbot) {
-      res.status(401).json({ success: false, error: 'Unauthorized', message: 'Domain not whitelisted or chatbot disabled' });
+      res.status(401).json({ success: false, error: 'Unauthorized', message: 'Chatbot not found or disabled' });
       return;
     }
 
@@ -207,7 +177,7 @@ export async function handleWidgetMessage(req: Request, res: Response, next: Nex
             $setOnInsert: {
               instanceId: (chatbot as any).instanceId,
               sessionId,
-              domain: origin,
+              domain: req.body.origin || req.headers.origin || 'unknown',
               pageUrl: url || '',
               capturedData: capturedData || {},
             },

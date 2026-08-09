@@ -2,7 +2,8 @@
   "name": "wa-platform",
   "version": "1.0.0",
   "description": "WhatsApp Automation Platform — monorepo",
-  "private": true,
+  "author": "kalp intelligence",
+  "license": "MIT",
   "scripts": {
     "dev": "concurrently --names \"SERVER,CLIENT\" --prefix-colors \"green,blue\" \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
     "build": "npm run build --prefix server && npm run build --prefix client",

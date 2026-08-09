@@ -31,6 +31,8 @@
 
     var apiUrl = String(config.apiUrl || '').replace(/\/+$/, '');
 
+    var chatbotId = config.chatbotId || null;
+
     var position = config.position || 'bottom-right';
 
     var primaryColor = config.primaryColor || '#25D366';
@@ -67,6 +69,14 @@
     if (!apiUrl) {
         console.error(
             '[Blastup Widget] apiUrl is missing from window.BlastupConfig'
+        );
+
+        return;
+    }
+
+    if (!chatbotId) {
+        console.error(
+            '[Blastup Widget] chatbotId is missing from window.BlastupConfig'
         );
 
         return;
@@ -1290,7 +1300,10 @@
                                 window.location.href,
 
                             origin:
-                                window.location.origin
+                                window.location.origin,
+
+                            chatbotId:
+                                chatbotId
 
                         })
                 }

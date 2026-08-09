@@ -2,6 +2,8 @@
   "name": "wa-server",
   "version": "1.0.0",
   "description": "WhatsApp Automation Platform - Backend API",
+  "author": "kalp intelligence",
+  "license": "MIT",
   "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
