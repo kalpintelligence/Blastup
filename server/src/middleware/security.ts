@@ -38,17 +38,25 @@ export function applySecurity(app: Application): void {
     })
   );
 
-  // CORS — only allow the client origin
-  app.use(
-    cors({
-      origin: env.CLIENT_URL,
-      credentials: true, // Required for cookies
-      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-      exposedHeaders: ['X-Total-Count', 'X-Page-Count'],
-      maxAge: 86400, // 24h preflight cache
-    })
-  );
+  // CORS — allow everything for public endpoints, only allow the client origin for others
+  const strictCors = cors({
+    origin: env.CLIENT_URL,
+    credentials: true, // Required for cookies
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    exposedHeaders: ['X-Total-Count', 'X-Page-Count'],
+    maxAge: 86400, // 24h preflight cache
+  });
+
+  const openCors = cors({ origin: '*' });
+
+  app.use((req, res, next) => {
+    if (req.path === '/widget.js' || req.path === '/api/chatbot/message') {
+      openCors(req, res, next);
+    } else {
+      strictCors(req, res, next);
+    }
+  });
 
   // Prevent NoSQL injection via MongoDB operators in req.body/params/query
   app.use(
