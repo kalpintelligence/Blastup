@@ -62,11 +62,8 @@ export function createApp(): express.Application {
 
   // ── Static file serving: chatbot widget ─────────────────────────
   //
-  // File:
-  // backend/public/widget.js
-  //
-  // URL:
-  // https://your-domain.com/widget.js
+  // Explicitly adds Access-Control-Allow-Origin: * so ANY external website
+  // (including file:// origins) can load widget.js without CORS errors.
   //
   app.use(
     '/widget.js',
@@ -77,16 +74,11 @@ export function createApp(): express.Application {
         dotfiles: 'deny',
         fallthrough: false,
         setHeaders: (res) => {
-          res.setHeader(
-            'Content-Type',
-            'application/javascript; charset=utf-8'
-          );
-
+          res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
           // Allow browser caching of widget.js
-          res.setHeader(
-            'Cache-Control',
-            'public, max-age=300'
-          );
+          res.setHeader('Cache-Control', 'public, max-age=300');
         },
       }
     )

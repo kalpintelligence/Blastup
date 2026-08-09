@@ -48,10 +48,19 @@ export function applySecurity(app: Application): void {
     maxAge: 86400, // 24h preflight cache
   });
 
-  const openCors = cors({ origin: '*' });
+  const openCors = cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type'],
+  });
 
+  // Public widget endpoints: widget.js download + chatbot message API
+  // Must run BEFORE strictCors so that these paths are never restricted.
   app.use((req, res, next) => {
-    if (req.path === '/widget.js' || req.path === '/api/chatbot/message') {
+    if (
+      req.path === '/widget.js' ||
+      req.path.startsWith('/api/chatbot/message')
+    ) {
       openCors(req, res, next);
     } else {
       strictCors(req, res, next);
