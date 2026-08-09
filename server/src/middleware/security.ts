@@ -57,10 +57,28 @@ export function applySecurity(app: Application): void {
   // Public widget endpoints: widget.js download + chatbot message API
   // Must run BEFORE strictCors so that these paths are never restricted.
   app.use((req, res, next) => {
-    if (
+    const origin = req.headers.origin || req.headers.referer || '(no origin — likely file:// or same-origin)';
+    const isPublic =
       req.path === '/widget.js' ||
-      req.path.startsWith('/api/chatbot/message')
-    ) {
+      req.path.startsWith('/api/chatbot/message');
+
+    const corsMode = isPublic ? 'OPEN (*)' : `STRICT (${env.CLIENT_URL})`;
+
+    console.log(
+      `[CORS] ${req.method} ${req.path} | origin: ${origin} | mode: ${corsMode}`
+    );
+
+    // After the response is finished, log if CORS blocked it
+    res.on('finish', () => {
+      const acao = res.getHeader('access-control-allow-origin');
+      if (!acao && req.headers.origin) {
+        console.warn(
+          `[CORS BLOCKED] ${req.method} ${req.path} | origin: ${origin} | No Access-Control-Allow-Origin header was set — request likely blocked by browser`
+        );
+      }
+    });
+
+    if (isPublic) {
       openCors(req, res, next);
     } else {
       strictCors(req, res, next);
