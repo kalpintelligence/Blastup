@@ -222,21 +222,114 @@ export const keysApi = {
   delete: (id: string) => request<{ success: boolean }>(`/api/keys/${id}`, { method: 'DELETE' }),
 };
 
-// ── Chatbot ───────────────────────────────────────────────────────────
+// ── Chatbot ─────────────────────────────────────────────────────────
 export const chatbotApi = {
   get: () => request<{ success: boolean; data: any }>('/api/chatbot'),
 
   update: (data: {
     enabled: boolean;
+    botName?: string;
+    botIcon?: string;
     welcomeMessage?: string;
     fallbackMessage?: string;
-    position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
+    offlineMessage?: string;
+    headerText?: string;
+    subHeaderText?: string;
+    buttonLabel?: string;
     primaryColor?: string;
+    secondaryColor?: string;
+    gradientAngle?: number;
+    gradient?: boolean;
+    position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
+    theme?: 'classic' | 'glassmorphic';
+    whitelistedDomains?: string[];
     rules?: Array<{ keyword: string; response: string; matchType: 'exact' | 'contains' | 'startsWith' }>;
+    collectLeads?: boolean;
+    leadFields?: Array<'name' | 'email' | 'phone'>;
   }) => request<{ success: boolean; data: any }>('/api/chatbot', {
     method: 'PUT',
     body: JSON.stringify(data),
   }),
+};
+
+// ── Chatbot Leads ─────────────────────────────────────────────────
+export const chatbotLeadsApi = {
+  list: (params?: { page?: number; limit?: number; domain?: string }) =>
+    request<{ success: boolean; data: any[]; pagination: any }>('/api/chatbot/leads', { params }),
+  delete: (id: string) =>
+    request<{ success: boolean }>(`/api/chatbot/leads/${id}`, { method: 'DELETE' }),
+};
+
+// ── Company Knowledge ─────────────────────────────────────────────
+export const knowledgeApi = {
+  list: (params?: { category?: string; status?: string; search?: string }) =>
+    request<{ success: boolean; data: any[] }>('/api/chatbot/knowledge', { params }),
+
+  create: (data: {
+    title: string;
+    category: string;
+    content: string;
+    keywords: string[];
+    synonyms: string[];
+    priority: number;
+    status: 'active' | 'inactive';
+  }) =>
+    request<{ success: boolean; data: any }>('/api/chatbot/knowledge', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: string, data: Partial<{
+    title: string;
+    category: string;
+    content: string;
+    keywords: string[];
+    synonyms: string[];
+    priority: number;
+    status: 'active' | 'inactive';
+  }>) =>
+    request<{ success: boolean; data: any }>(`/api/chatbot/knowledge/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: string) =>
+    request<{ success: boolean }>(`/api/chatbot/knowledge/${id}`, { method: 'DELETE' }),
+
+  test: (message: string, sessionId?: string) =>
+    request<{
+      success: boolean;
+      data: {
+        message: string;
+        reply: string;
+        intent: string;
+        confidence: number;
+        knowledgeId: string | null;
+        knowledgeTitle: string | null;
+        suggestions: string[];
+      };
+    }>('/api/chatbot/knowledge/test', {
+      method: 'POST',
+      body: JSON.stringify({ message, sessionId }),
+    }),
+};
+
+
+// ── Safe Mode ─────────────────────────────────────────────────────────
+export const safeModeApi = {
+  getStatus: (instanceId: string) =>
+    request<{ success: boolean; data: any }>(`/api/safemode/${encodeURIComponent(instanceId)}/status`),
+  
+  enable: (instanceId: string, tier: number = 1) =>
+    request<{ success: boolean; data: any }>(`/api/safemode/${encodeURIComponent(instanceId)}/enable`, {
+      method: 'POST',
+      body: JSON.stringify({ tier }),
+    }),
+
+  disable: (instanceId: string) =>
+    request<{ success: boolean; data: any }>(`/api/safemode/${encodeURIComponent(instanceId)}/disable`, {
+      method: 'POST',
+    }),
 };
 
 export { ApiError };

@@ -4,6 +4,7 @@ import { Contact } from '../models/Contact';
 import * as messageService from './message.service';
 import { parsePagination, buildPaginatedResult } from '../utils/pagination';
 import { logger } from '../config/logger';
+import { SafeModeError } from '../safemode/SafeModeError';
 
 export async function createCampaign(
   instanceId: string,
@@ -246,10 +247,51 @@ export async function executeCampaign(campaignId: string) {
       await log.save();
       sentCount++;
     } catch (err: any) {
-      log.status = 'failed';
-      log.errorMessage = err?.message || 'Failed to dispatch message';
-      await log.save();
-      failedCount++;
+      if (err instanceof SafeModeError) {
+        if (err.code === 'F14') {
+          // Daily cap or sending-window hit — reschedule remaining sends for later.
+          // Do NOT retry-loop: retrying immediately just throws again until midnight.
+          logger.warn(`[Campaign ${campaignId}] Safe Mode F14: ${err.detail} — pausing remaining sends`);
+          log.status = 'pending'; // Keep as pending so it's picked up after midnight
+          log.errorMessage = `Safe Mode: ${err.detail}`;
+          await log.save();
+          failedCount++;
+
+          await Campaign.findByIdAndUpdate(campaignId, {
+            'stats.sent': sentCount,
+            'stats.delivered': sentCount,
+            'stats.read': Math.floor(sentCount * 0.75),
+            'stats.failed': failedCount,
+          });
+
+          // Break remaining sends for today — they stay 'pending' for midnight retry
+          break;
+        } else if (err.code === 'F13') {
+          // Link blocked in first message — fail this recipient clearly
+          logger.warn(`[Campaign ${campaignId}] Safe Mode F13 for ${log.phone}: ${err.detail}`);
+          log.status = 'failed';
+          log.errorMessage = `Safe Mode F13: Link blocked in first message. Remove URLs and retry.`;
+          await log.save();
+          failedCount++;
+        } else if (err.code === 'F15') {
+          // Group action not available at this tier
+          logger.warn(`[Campaign ${campaignId}] Safe Mode F15 for ${log.phone}: ${err.detail}`);
+          log.status = 'failed';
+          log.errorMessage = `Safe Mode F15: Group action blocked at current tier.`;
+          await log.save();
+          failedCount++;
+        } else {
+          log.status = 'failed';
+          log.errorMessage = `Safe Mode error: ${err.message}`;
+          await log.save();
+          failedCount++;
+        }
+      } else {
+        log.status = 'failed';
+        log.errorMessage = err?.message || 'Failed to dispatch message';
+        await log.save();
+        failedCount++;
+      }
     }
 
     // Update stats after each log

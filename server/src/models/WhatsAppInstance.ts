@@ -21,6 +21,10 @@ export interface IWhatsAppInstance extends Document {
   messagesSent: number;
   messagesReceived: number;
   autoReconnect: boolean;
+  // Safe Mode anti-ban fields
+  safeModeEnabled: boolean;
+  safeModeStartedAt: Date | null;
+  safeModeStartTier: number | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -54,6 +58,10 @@ const whatsAppInstanceSchema = new Schema<IWhatsAppInstance>(
     messagesSent: { type: Number, default: 0 },
     messagesReceived: { type: Number, default: 0 },
     autoReconnect: { type: Boolean, default: true },
+    // Safe Mode anti-ban fields
+    safeModeEnabled: { type: Boolean, default: true },
+    safeModeStartedAt: { type: Date, default: null },
+    safeModeStartTier: { type: Number, default: null },
   },
   {
     timestamps: true,

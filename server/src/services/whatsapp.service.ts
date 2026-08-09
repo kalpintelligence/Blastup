@@ -21,6 +21,10 @@ import { Message } from '../models/Message';
 import { EventEmitter } from 'events';
 import pino from 'pino';
 import { normalizeJid } from '../utils/jid';
+import { getSafeModeManager } from '../config/safemode';
+import { wrapBaileysSocket } from '../safemode/wrapBaileysSocket';
+import { recordKnownChatsFromStore } from '../safemode/recordKnownChatsFromStore';
+import { SafeModeError } from '../safemode/SafeModeError';
 
 export const waEvents = new EventEmitter();
 waEvents.setMaxListeners(100);
@@ -124,6 +128,25 @@ export async function initWhatsApp(instanceId: string = 'default'): Promise<void
         } catch {
           // ignore
         }
+
+        // ── Safe Mode wiring ─────────────────────────────────────────────
+        // 1. Seed known chats so existing numbers aren't penalised as new
+        const manager = getSafeModeManager();
+        await recordKnownChatsFromStore(sock, manager, instanceId);
+
+        // 2. Enable Safe Mode for new sessions if not already set
+        const instance = await WhatsAppInstance.findOne({ instanceId });
+        if (instance?.safeModeEnabled && !await manager.getStatus(instanceId).then(s => s.enabled)) {
+          await manager.enable(instanceId, (instance.safeModeStartTier || 1) as any);
+          logger.info(`[${instanceId}] Safe Mode enabled at Tier ${instance.safeModeStartTier || 1}`);
+        }
+
+        // 3. Wrap the socket — from this point ALL sendMessage calls go
+        //    through Safe Mode. Store the *wrapped* socket so getSocket()
+        //    returns a protected socket to every consumer.
+        const wrappedSock = wrapBaileysSocket(sock, manager, instanceId);
+        sockets.set(instanceId, wrappedSock);
+        // ─────────────────────────────────────────────────────────────────
 
         await WhatsAppInstance.findOneAndUpdate(
           { instanceId },
@@ -400,7 +423,21 @@ async function handleChatbotAutoResponse(instanceId: string, toJid: string, inco
 
     if (reply) {
       const normalizedTo = normalizeJid(toJid);
-      const res = await sock.sendMessage(normalizedTo, { text: reply });
+      let res: any;
+      try {
+        res = await sock.sendMessage(normalizedTo, { text: reply });
+      } catch (err: any) {
+        if (err instanceof SafeModeError) {
+          // Safe Mode blocked the chatbot reply — log and skip silently
+          // (e.g. outside sending window or daily cap). Do not crash.
+          logger.warn(`[${instanceId}] Chatbot reply blocked by Safe Mode`, {
+            code: err.code,
+            detail: err.detail,
+          });
+          return;
+        }
+        throw err;
+      }
       await Message.create({
         msgId: res?.key?.id || 'bot_' + Date.now(),
         chatId: normalizedTo,

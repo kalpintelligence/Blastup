@@ -8,6 +8,7 @@ import path from 'path';
 import { applySecurity } from './middleware/security';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { apiLimiter } from './middleware/rateLimit';
+import { authenticate } from './middleware/auth';
 
 import authRoutes from './routes/auth.routes';
 import whatsappRoutes from './routes/whatsapp.routes';
@@ -22,6 +23,8 @@ import chatbotRoutes from './routes/chatbot.routes';
 
 import { initCampaignScheduler } from './services/campaignScheduler';
 import { normalizeExistingDatabase } from './utils/jid';
+import { createSafeModeRouter, safeModeErrorHandler } from './safemode';
+import { getSafeModeManager } from './config/safemode';
 
 import { env } from './config/env';
 
@@ -200,11 +203,22 @@ export function createApp(): express.Application {
     chatbotRoutes
   );
 
+  // ── Safe Mode API ────────────────────────────────────────────────
+  app.use(
+    '/api/safemode',
+    apiLimiter,
+    authenticate,
+    createSafeModeRouter(getSafeModeManager(), express)
+  );
+
   // ── Error Handling ──────────────────────────────────────────────
 
   app.use(
     notFoundHandler
   );
+
+  // SafeModeError handler must come before the generic errorHandler
+  app.use(safeModeErrorHandler());
 
   app.use(
     errorHandler

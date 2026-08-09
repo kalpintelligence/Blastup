@@ -33,6 +33,8 @@ const envSchema = z.object({
   RATE_LIMIT_MAX: z.string().default('100').transform(Number),
   LOGIN_RATE_LIMIT_MAX: z.string().default('5').transform(Number),
   ACCOUNT_LOCK_DURATION_MINUTES: z.string().default('30').transform(Number),
+  // Redis (used by Safe Mode and any future caching)
+  REDIS_URL: z.string().default('redis://localhost:6379'),
   // Logs
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
 });

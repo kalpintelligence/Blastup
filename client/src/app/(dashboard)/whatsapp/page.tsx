@@ -2,9 +2,9 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import Header from '@/components/layout/Header';
-import { whatsappApi } from '@/lib/api';
+import { whatsappApi, safeModeApi } from '@/lib/api';
 import { SkeletonStatusCard, Shimmer } from '@/components/ui/Skeleton';
-import { RefreshCw, Trash2, LogOut, QrCode, CheckCircle2, Loader2 } from 'lucide-react';
+import { RefreshCw, Trash2, LogOut, QrCode, CheckCircle2, Loader2, Shield, ShieldOff, Zap } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 
 const statusLabels: Record<string, string> = {
@@ -23,6 +23,8 @@ export default function WhatsAppPage() {
   const [status, setStatus] = useState<any>(null);
   const [qr, setQr] = useState<string | null>(null);
   const [viewState, setViewState] = useState<ViewState>('loading');
+  const [safeModeStatus, setSafeModeStatus] = useState<any>(null);
+  const [safeModeLoading, setSafeModeLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState('');
   const [error, setError] = useState('');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -52,6 +54,13 @@ export default function WhatsAppPage() {
         qrRef.current = null;
         lastQrFetchAtRef.current = 0;
         clearGeneratePoll();
+
+        // Fetch safe mode status if we have instanceId
+        if (data.instanceId) {
+          safeModeApi.getStatus(data.instanceId)
+            .then(smRes => setSafeModeStatus(smRes.data))
+            .catch(() => {});
+        }
       } else if (st === 'qr_ready') {
         const shouldFetchQr =
           !qrRef.current || Date.now() - lastQrFetchAtRef.current >= QR_POLL_INTERVAL_MS;
@@ -140,6 +149,24 @@ export default function WhatsAppPage() {
       clearGeneratePoll();
     } finally {
       setIsInitiating(false);
+    }
+  };
+
+  const handleToggleSafeMode = async () => {
+    if (!status?.instanceId) return;
+    setSafeModeLoading(true);
+    try {
+      if (safeModeStatus?.enabled) {
+        await safeModeApi.disable(status.instanceId);
+      } else {
+        await safeModeApi.enable(status.instanceId, 1);
+      }
+      const smRes = await safeModeApi.getStatus(status.instanceId);
+      setSafeModeStatus(smRes.data);
+    } catch (err: any) {
+      setError(err?.data?.message || err?.message || 'Failed to toggle Safe Mode');
+    } finally {
+      setSafeModeLoading(false);
     }
   };
 
@@ -331,6 +358,68 @@ export default function WhatsAppPage() {
               <p className="text-secondary" style={{ fontSize: 13, maxWidth: 280 }}>
                 Your phone is linked and ready to process automated broadcasts and messages.
               </p>
+            </div>
+
+            {/* Safe Mode Panel */}
+            <div className="card" style={{ 
+              background: safeModeStatus?.enabled ? 'linear-gradient(135deg, rgba(34,197,94,0.1) 0%, rgba(16,185,129,0.08) 100%)' : 'var(--color-bg-secondary)',
+              border: safeModeStatus?.enabled ? '1px solid rgba(34,197,94,0.3)' : '1px solid var(--color-border)'
+            }}>
+              <div className="flex items-center justify-between" style={{ marginBottom: 16 }}>
+                <div className="flex items-center gap-3">
+                  <div style={{
+                    width: 40, height: 40, borderRadius: '50%',
+                    background: safeModeStatus?.enabled ? 'linear-gradient(135deg, #22c55e, #16a34a)' : 'var(--color-bg-tertiary)',
+                    color: safeModeStatus?.enabled ? 'white' : 'var(--color-text-secondary)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  }}>
+                    {safeModeStatus?.enabled ? <Shield size={20} /> : <ShieldOff size={20} />}
+                  </div>
+                  <div>
+                    <h3 className="font-semibold" style={{ fontSize: 16 }}>Safe Mode</h3>
+                    <p className="text-xs text-secondary">
+                      {safeModeStatus?.enabled ? 'Anti-ban protection is ACTIVE' : 'Anti-ban protection is INACTIVE'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  className={`btn btn-sm ${safeModeStatus?.enabled ? 'btn-secondary' : 'btn-primary'}`}
+                  onClick={handleToggleSafeMode}
+                  disabled={safeModeLoading}
+                  style={{
+                    color: safeModeStatus?.enabled ? '#ef4444' : undefined,
+                    borderColor: safeModeStatus?.enabled ? 'rgba(239,68,68,0.3)' : undefined
+                  }}
+                >
+                  {safeModeLoading ? <Loader2 size={14} className="animate-spin" /> : null}
+                  {safeModeStatus?.enabled ? 'Disable' : 'Enable'}
+                </button>
+              </div>
+
+              {safeModeStatus?.enabled && (
+                <div style={{ background: 'var(--color-bg-primary)', padding: 16, borderRadius: 12, border: '1px solid var(--color-border)' }}>
+                  <div className="flex justify-between items-center" style={{ marginBottom: 12 }}>
+                    <span className="text-sm font-medium flex items-center gap-2">
+                      <Zap size={14} style={{ color: '#f59e0b' }} /> Tier {safeModeStatus.tier}
+                    </span>
+                    <span className="text-xs text-secondary">Day {safeModeStatus.day} of warm-up</span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <div style={{ padding: '8px 12px', background: 'var(--color-bg-secondary)', borderRadius: 8 }}>
+                      <div className="text-xs text-secondary mb-1">Daily Cap</div>
+                      <div className="font-semibold text-sm">
+                        {safeModeStatus.counters?.sentToday || 0} / {safeModeStatus.limits?.dailyLimit || 0}
+                      </div>
+                    </div>
+                    <div style={{ padding: '8px 12px', background: 'var(--color-bg-secondary)', borderRadius: 8 }}>
+                      <div className="text-xs text-secondary mb-1">New Chats Today</div>
+                      <div className="font-semibold text-sm">
+                        {safeModeStatus.counters?.newChatsToday || 0} / {safeModeStatus.limits?.maxNewChatsPerDay || 0}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

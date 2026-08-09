@@ -31,15 +31,33 @@
 
     var apiUrl = String(config.apiUrl || '').replace(/\/+$/, '');
 
-    var token = config.token || '';
-
     var position = config.position || 'bottom-right';
 
     var primaryColor = config.primaryColor || '#25D366';
 
+    var secondaryColor = config.secondaryColor || '#128C7E';
+
+    var gradient = config.gradient !== undefined ? config.gradient : true;
+
+    var gradientAngle = config.gradientAngle !== undefined ? config.gradientAngle : 135;
+
+    var botName = config.botName || 'Blastup Bot';
+
+    var botIcon = config.botIcon || 'bot';
+
+    var headerText = config.headerText || 'Chat with us';
+
+    var subHeaderText = config.subHeaderText || 'We typically reply within minutes';
+
+    var buttonLabel = config.buttonLabel || 'Chat';
+
     var welcomeText =
         config.welcomeText ||
         'Hello! Welcome. How can I help you today? 👋';
+
+    var headerBg = gradient
+      ? `linear-gradient(${gradientAngle}deg, ${primaryColor}, ${secondaryColor})`
+      : primaryColor;
 
 
     // ------------------------------------------------------------
@@ -104,14 +122,14 @@
 
       z-index: 2147483646;
 
-      width: 60px;
-      height: 60px;
+      width: auto;
+      height: 42px;
 
       border: none;
 
-      border-radius: 50%;
+      border-radius: 9999px;
 
-      background: ${primaryColor};
+      background: ${headerBg};
 
       color: #ffffff;
 
@@ -123,16 +141,21 @@
 
       justify-content: center;
 
+      gap: 8px;
+
       box-shadow:
-        0 8px 28px rgba(0, 0, 0, 0.22);
+        0 8px 25px rgba(0, 0, 0, 0.22);
 
       transition:
-        transform 0.2s ease,
+        transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275),
         box-shadow 0.2s ease;
 
-      padding: 0;
+      padding: 10px 18px;
 
       outline: none;
+
+      font-size: 13px;
+      font-weight: 700;
     }
 
 
@@ -237,7 +260,7 @@
 
       padding: 14px 16px;
 
-      background: ${primaryColor};
+      background: ${headerBg};
 
       color: #ffffff;
 
@@ -580,16 +603,245 @@
 
       .blastup-widget-panel {
 
-        width:
-          calc(100vw - 20px);
-
-        height:
-          calc(100vh - 90px);
-
-        border-radius: 16px;
       }
     }
 
+    /* ==========================================================
+       PREMIUM GLASSMORPHIC THEME SCOPED STYLES
+       ========================================================== */
+
+    .blastup-theme-glassmorphic .blastup-widget-button {
+      background: rgba(255, 255, 255, 0.92) !important;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.8) !important;
+      color: ${primaryColor} !important;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2), 0 4px 12px rgba(0,0,0,0.1) !important;
+      height: 42px !important;
+      width: auto !important;
+      border-radius: 9999px !important;
+      padding: 10px 18px !important;
+      font-size: 13px !important;
+      font-weight: 700 !important;
+      transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease !important;
+    }
+
+    .blastup-theme-glassmorphic .blastup-widget-button:hover {
+      transform: scale(1.08) translateY(-2px) !important;
+      box-shadow: 0 14px 35px rgba(0,0,0,0.25), 0 6px 16px rgba(0,0,0,0.12) !important;
+    }
+
+    .blastup-theme-glassmorphic .blastup-widget-button:active {
+      transform: scale(0.94) !important;
+    }
+
+    .blastup-theme-glassmorphic .blastup-widget-button::before {
+      content: none;
+    }
+
+    @keyframes blastupPulse {
+      0% { transform: scale(0.95); opacity: 0.5; }
+      100% { transform: scale(1.15); opacity: 1; }
+    }
+
+    .blastup-theme-glassmorphic .blastup-widget-panel {
+      background: rgba(255, 255, 255, 0.35) !important;
+      backdrop-filter: blur(30px) saturate(210%);
+      -webkit-backdrop-filter: blur(30px) saturate(210%);
+      border: 1px solid rgba(255, 255, 255, 0.45) !important;
+      border-radius: 24px;
+      box-shadow: 
+        inset 0 1px 0 rgba(255, 255, 255, 0.65), 
+        inset 0 -1px 0 rgba(0, 0, 0, 0.05),
+        0 30px 80px -10px rgba(118, 93, 203, 0.18) !important;
+    }
+
+    .blastup-theme-glassmorphic .blastup-widget-panel::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(167, 139, 250, 0.08) 0%, rgba(14, 165, 233, 0.05) 30%, rgba(52, 211, 153, 0.04) 60%, rgba(244, 63, 94, 0.03) 100%);
+      z-index: 0;
+      pointer-events: none;
+      animation: blastupGradientRotate 25s linear infinite;
+    }
+
+    @keyframes blastupGradientRotate {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .blastup-theme-glassmorphic .blastup-widget-header {
+      background: transparent !important;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.25) !important;
+      padding: 22px 20px 16px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      position: relative;
+      min-height: auto;
+      z-index: 1;
+    }
+
+    .blastup-theme-glassmorphic .blastup-widget-brand {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+    }
+
+    .blastup-theme-glassmorphic .blastup-widget-avatar {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.6) !important;
+      border: 1px solid rgba(255, 255, 255, 0.45);
+      box-shadow: 0 8px 20px rgba(99, 102, 241, 0.1), inset 0 1px 2px rgba(255, 255, 255, 0.8) !important;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      animation: blastupFloat 4s ease-in-out infinite;
+    }
+
+    @keyframes blastupFloat {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-4px); }
+    }
+
+    .blastup-theme-glassmorphic .blastup-widget-title {
+      color: #1e293b !important;
+      font-weight: 600;
+      font-size: 14px;
+      letter-spacing: -0.010em;
+    }
+
+    .blastup-theme-glassmorphic .blastup-widget-status {
+      color: #64748b !important;
+      font-size: 10px;
+      margin-top: 2px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-weight: 500;
+    }
+
+    .blastup-theme-glassmorphic .blastup-widget-status::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #10b981;
+      display: inline-block;
+      box-shadow: 0 0 6px #10b981;
+    }
+
+    .blastup-theme-glassmorphic .blastup-widget-close {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      color: #94a3b8 !important;
+      background: rgba(255, 255, 255, 0.3) !important;
+      border-radius: 50%;
+      width: 26px;
+      height: 26px;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .blastup-theme-glassmorphic .blastup-widget-close:hover {
+      background: rgba(255, 255, 255, 0.6) !important;
+      color: #1e293b !important;
+    }
+
+    .blastup-theme-glassmorphic .blastup-widget-messages {
+      background: transparent !important;
+      padding: 20px;
+      z-index: 1;
+    }
+
+    .blastup-theme-glassmorphic .blastup-widget-message {
+      border-radius: 16px;
+      font-size: 13px;
+      line-height: 1.5;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.01);
+      border: 1px solid rgba(255, 255, 255, 0.45);
+      padding: 11px 14px;
+    }
+
+    .blastup-theme-glassmorphic .blastup-widget-message.bot {
+      background: rgba(255, 255, 255, 0.65) !important;
+      color: #1e293b !important;
+      border-bottom-left-radius: 4px;
+    }
+
+    .blastup-theme-glassmorphic .blastup-widget-message.user {
+      background: rgba(99, 102, 241, 0.18) !important;
+      color: #312e81 !important;
+      border: 1px solid rgba(99, 102, 241, 0.25) !important;
+      border-bottom-right-radius: 4px;
+    }
+
+    .blastup-theme-glassmorphic .blastup-widget-typing {
+      background: rgba(255, 255, 255, 0.55) !important;
+      border: 1px solid rgba(255, 255, 255, 0.45) !important;
+      border-radius: 14px;
+      font-size: 12px;
+      color: #64748b;
+      margin: 0 20px 10px 20px;
+      padding: 9px 12px;
+      z-index: 1;
+    }
+
+    .blastup-theme-glassmorphic .blastup-widget-input-area {
+      background: rgba(255, 255, 255, 0.2) !important;
+      border-top: 1px solid rgba(255, 255, 255, 0.25) !important;
+      padding: 12px 14px;
+      z-index: 1;
+    }
+
+    .blastup-theme-glassmorphic .blastup-widget-input {
+      background: rgba(255, 255, 255, 0.5) !important;
+      border: 1px solid rgba(255, 255, 255, 0.5) !important;
+      border-radius: 14px;
+      color: #1e293b;
+      font-size: 13px;
+      height: 40px;
+      transition: all 0.2s;
+      padding: 0 14px;
+    }
+
+    .blastup-theme-glassmorphic .blastup-widget-input:focus {
+      background: rgba(255, 255, 255, 0.75) !important;
+      border-color: rgba(99, 102, 241, 0.4) !important;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.08) !important;
+    }
+
+    .blastup-theme-glassmorphic .blastup-widget-send {
+      background: rgba(255, 255, 255, 0.6) !important;
+      border: 1px solid rgba(255, 255, 255, 0.5) !important;
+      color: #4f46e5 !important;
+      border-radius: 12px;
+      width: 40px;
+      height: 40px;
+      box-shadow: 0 2px 8px rgba(99, 102, 241, 0.06);
+      transition: all 0.2s;
+    }
+
+    .blastup-theme-glassmorphic .blastup-widget-send:hover {
+      background: rgba(255, 255, 255, 0.95) !important;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+    }
   `;
 
     document.head.appendChild(style);
@@ -599,9 +851,15 @@
     // ROOT
     // ------------------------------------------------------------
 
+    // ------------------------------------------------------------
+    // THEME & ROOT
+    // ------------------------------------------------------------
+
+    var theme = config.theme || 'glassmorphic';
+
     var root = document.createElement('div');
 
-    root.className = 'blastup-widget';
+    root.className = 'blastup-widget' + (theme === 'glassmorphic' ? ' blastup-theme-glassmorphic' : '');
 
 
     // ------------------------------------------------------------
@@ -621,36 +879,25 @@
     );
 
 
-    button.innerHTML = `
+    function getBotIconHtml(size, color) {
+        var isUrl = botIcon.startsWith('http://') || botIcon.startsWith('https://') || botIcon.startsWith('/') || botIcon.includes('.');
+        if (isUrl) {
+            return '<img src="' + botIcon + '" alt="Avatar" style="width: ' + size + 'px; height: ' + size + 'px; border-radius: 50%; object-fit: cover;" onerror="this.style.display=\'none\';" />';
+        }
+        
+        var presetSvgs = {
+            bot: '<svg viewBox="0 0 24 24" fill="none" stroke="' + (color || 'currentColor') + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: ' + size + 'px; height: ' + size + 'px; display: inline-block; vertical-align: middle;"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>',
+            sparkles: '<svg viewBox="0 0 24 24" fill="none" stroke="' + (color || 'currentColor') + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: ' + size + 'px; height: ' + size + 'px; display: inline-block; vertical-align: middle;"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>',
+            message: '<svg viewBox="0 0 24 24" fill="none" stroke="' + (color || 'currentColor') + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: ' + size + 'px; height: ' + size + 'px; display: inline-block; vertical-align: middle;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+            user: '<svg viewBox="0 0 24 24" fill="none" stroke="' + (color || 'currentColor') + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: ' + size + 'px; height: ' + size + 'px; display: inline-block; vertical-align: middle;"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+            zap: '<svg viewBox="0 0 24 24" fill="none" stroke="' + (color || 'currentColor') + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: ' + size + 'px; height: ' + size + 'px; display: inline-block; vertical-align: middle;"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
+            globe: '<svg viewBox="0 0 24 24" fill="none" stroke="' + (color || 'currentColor') + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: ' + size + 'px; height: ' + size + 'px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>'
+        };
+        return presetSvgs[botIcon] || presetSvgs.bot;
+    }
 
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-    >
-
-      <path
-        d="
-          M20 2H4
-          a2 2 0 0 0-2 2
-          v15.2
-          a.8.8 0 0 0 1.3.62
-          L6.7 17H20
-          a2 2 0 0 0 2-2V4
-          a2 2 0 0 0-2-2Z
-
-          M17 12H7
-          a1 1 0 1 1 0-2h10
-          a1 1 0 1 1 0 2Z
-
-          M17 8H7
-          a1 1 0 1 1 0-2h10
-          a1 1 0 1 1 0 2Z
-        "
-      />
-
-    </svg>
-
-  `;
+    var buttonColor = theme === 'glassmorphic' ? primaryColor : '#ffffff';
+    button.innerHTML = getBotIconHtml(16, buttonColor) + ' <span>' + (buttonLabel || 'Chat') + '</span>';
 
 
     // ------------------------------------------------------------
@@ -672,6 +919,8 @@
         'Chatbot'
     );
 
+    var avatarContent = getBotIconHtml(24, theme === 'glassmorphic' ? primaryColor : '#ffffff');
+
 
     panel.innerHTML = `
 
@@ -680,17 +929,17 @@
       <div class="blastup-widget-brand">
 
         <div class="blastup-widget-avatar">
-          🤖
+          ${avatarContent}
         </div>
 
         <div>
 
           <div class="blastup-widget-title">
-            Chat Support
+            ${botName}
           </div>
 
           <div class="blastup-widget-status">
-            Usually replies instantly
+            ${subHeaderText}
           </div>
 
         </div>
@@ -1005,27 +1254,8 @@
 
 
         var headers = {
-
-            'Content-Type':
-                'application/json'
-
+            'Content-Type': 'application/json'
         };
-
-
-        // API authentication
-
-        if (
-            token &&
-            token !==
-            'YOUR_API_KEY_HERE'
-        ) {
-
-            headers.Authorization =
-                'Bearer ' + token;
-
-            headers['X-API-Key'] =
-                token;
-        }
 
 
         var response =

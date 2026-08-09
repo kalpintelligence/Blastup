@@ -3,6 +3,8 @@ import { connectDatabase } from './config/database';
 import { initWhatsApp } from './services/whatsapp.service';
 import { logger } from './config/logger';
 import { env } from './config/env';
+import { getSafeModeManager } from './config/safemode';
+import { disconnectRedis } from './config/redis';
 import http from 'http';
 
 async function bootstrap() {
@@ -10,6 +12,9 @@ async function bootstrap() {
     // Connect to MongoDB
     await connectDatabase();
     logger.info('Database connected');
+
+    // Initialize Safe Mode Manager (Redis-backed in production)
+    getSafeModeManager();
 
     // Reset hanging statuses from previous crash
     const { WhatsAppInstance } = await import('./models/WhatsAppInstance');
@@ -49,6 +54,7 @@ async function bootstrap() {
         try {
           const { disconnectDatabase } = await import('./config/database');
           await disconnectDatabase();
+          await disconnectRedis();
           logger.info('Shutdown complete');
           process.exit(0);
         } catch {

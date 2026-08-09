@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { Eye, EyeOff, Lock, User } from 'lucide-react';
 import { authApi } from '@/lib/api';
-import '@/styles/globals.css';
 
 export default function LoginPage() {
   return (

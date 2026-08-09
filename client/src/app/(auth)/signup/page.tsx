@@ -6,7 +6,6 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, Lock, User } from 'lucide-react';
 import { authApi } from '@/lib/api';
-import '@/styles/globals.css';
 
 export default function SignupPage() {
   const router = useRouter();
