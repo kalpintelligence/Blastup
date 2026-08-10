@@ -80,13 +80,7 @@
         return;
     }
 
-    console.log(
-        '[Blastup Widget] ✅ Initialized',
-        '\n  apiUrl    :', apiUrl,
-        '\n  chatbotId :', chatbotId,
-        '\n  endpoint  :', apiUrl + '/api/chatbot/message',
-        '\n  pageOrigin:', window.location.origin
-    );
+
 
     // ------------------------------------------------------------
     // PREVENT DUPLICATE WIDGET
@@ -1265,17 +1259,9 @@
 
         var endpoint = apiUrl + '/api/chatbot/message';
 
-        console.log('[Blastup Widget] 📤 Sending message:', {
-            endpoint,
-            chatbotId,
-            message,
-            sessionId,
-            pageOrigin: window.location.origin
-        });
 
-        // Use text/plain so browsers treat this as a "simple" CORS request.
-        // Simple requests skip the OPTIONS preflight entirely — works from
-        // file://, any domain, and behind strict nginx configs.
+
+
         var payload = JSON.stringify({
             message,
             text: message,
@@ -1293,15 +1279,13 @@
                 endpoint,
                 {
                     method: 'POST',
-                    headers: { 'Content-Type': 'text/plain' },
+                    headers: { 'Content-Type': 'application/json' },
                     credentials: 'omit',
                     body: payload
                 }
             );
-            console.log('[Blastup Widget] ✅ Response status:', response.status, response.statusText);
+
         } catch (fetchError) {
-            console.error('[Blastup Widget] ❌ FETCH FAILED (likely CORS block or network error):', fetchError);
-            console.error('[Blastup Widget]    → Check that', endpoint, 'returns Access-Control-Allow-Origin: *');
             throw fetchError;
         }
 

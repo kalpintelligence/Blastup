@@ -39,9 +39,8 @@ export function createApp(): express.Application {
   applySecurity(app);
 
   // ── Body parsers ────────────────────────────────────────────────
-  // express.text() handles widget POSTs sent as text/plain (no CORS preflight needed)
-  app.use(express.text({ type: ['text/plain', 'text/*'], limit: '1mb' }));
   app.use(express.json({ limit: '1mb' }));
+
   app.use(
     express.urlencoded({
       extended: true,

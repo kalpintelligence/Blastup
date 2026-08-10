@@ -2,13 +2,13 @@ import { Router } from 'express';
 import * as chatbotController from '../controllers/chatbot.controller';
 import * as knowledgeController from '../controllers/knowledge.controller';
 import { authenticate } from '../middleware/auth';
-import cors from 'cors';
 
 const router = Router();
 
-// ── Public Widget Endpoints (CORS open, chatbot ID enforced in controller) ──
-router.options('/message', cors({ origin: '*' }));
-router.post('/message', cors({ origin: '*' }), chatbotController.handleWidgetMessage);
+// ── Public Widget Endpoints (CORS handled globally — open to all origins) ──
+router.options('/message', (req, res) => res.sendStatus(204));
+router.post('/message', chatbotController.handleWidgetMessage);
+
 
 // ── Dashboard Endpoints (require auth) ──────────────────────────────────────────
 router.use(authenticate);
