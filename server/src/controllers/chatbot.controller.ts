@@ -88,7 +88,14 @@ export async function updateChatbot(req: AuthRequest, res: Response, next: NextF
 
 export async function handleWidgetMessage(req: Request, res: Response, next: NextFunction) {
   try {
-    const { message, url, sessionId, capturedData, chatbotId } = req.body;
+    // Widget sends body as text/plain to avoid CORS preflight.
+    // Parse the JSON string if that's what arrived.
+    let body = req.body;
+    if (typeof body === 'string') {
+      try { body = JSON.parse(body); } catch { body = {}; }
+    }
+
+    const { message, url, sessionId, capturedData, chatbotId } = body;
 
     if (!chatbotId) {
       res.status(401).json({ success: false, error: 'Unauthorized', message: 'No valid chatbotId found' });

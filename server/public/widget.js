@@ -1273,9 +1273,19 @@
             pageOrigin: window.location.origin
         });
 
-        var headers = {
-            'Content-Type': 'application/json'
-        };
+        // Use text/plain so browsers treat this as a "simple" CORS request.
+        // Simple requests skip the OPTIONS preflight entirely — works from
+        // file://, any domain, and behind strict nginx configs.
+        var payload = JSON.stringify({
+            message,
+            text: message,
+            sessionId,
+            source: 'website-widget',
+            url: window.location.href,
+            pageUrl: window.location.href,
+            origin: window.location.origin,
+            chatbotId
+        });
 
         var response;
         try {
@@ -1283,18 +1293,9 @@
                 endpoint,
                 {
                     method: 'POST',
-                    headers: headers,
+                    headers: { 'Content-Type': 'text/plain' },
                     credentials: 'omit',
-                    body: JSON.stringify({
-                        message,
-                        text: message,
-                        sessionId,
-                        source: 'website-widget',
-                        url: window.location.href,
-                        pageUrl: window.location.href,
-                        origin: window.location.origin,
-                        chatbotId
-                    })
+                    body: payload
                 }
             );
             console.log('[Blastup Widget] ✅ Response status:', response.status, response.statusText);
