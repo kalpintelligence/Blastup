@@ -8,7 +8,7 @@ const router = Router();
 // ── Public Widget Endpoints (CORS handled globally — open to all origins) ──
 router.options('/message', (req, res) => res.sendStatus(204));
 router.post('/message', chatbotController.handleWidgetMessage);
-
+router.get('/status/:chatbotId', chatbotController.getChatbotStatus);
 
 // ── Dashboard Endpoints (require auth) ──────────────────────────────────────────
 router.use(authenticate);
@@ -18,6 +18,7 @@ router.put('/', chatbotController.updateChatbot);
 
 // Leads
 router.get('/leads', chatbotController.listLeads);
+router.post('/leads/:id/reply', chatbotController.replyToLead);
 router.delete('/leads/:id', chatbotController.deleteLead);
 
 // ── Company Knowledge ─────────────────────────────────────────────────────────

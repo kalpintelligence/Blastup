@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
 export interface IChatbotLeadMessage {
-  sender: 'user' | 'bot';
+  sender: 'user' | 'bot' | 'agent';
   text: string;
   timestamp: Date;
 }
@@ -25,7 +25,7 @@ export interface IChatbotLead extends Document {
 }
 
 const chatbotLeadMessageSchema = new Schema<IChatbotLeadMessage>({
-  sender: { type: String, enum: ['user', 'bot'], required: true },
+  sender: { type: String, enum: ['user', 'bot', 'agent'], required: true },
   text: { type: String, required: true },
   timestamp: { type: Date, default: () => new Date() },
 }, { _id: false });

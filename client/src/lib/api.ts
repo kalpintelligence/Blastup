@@ -256,6 +256,11 @@ export const chatbotApi = {
 export const chatbotLeadsApi = {
   list: (params?: { page?: number; limit?: number; domain?: string }) =>
     request<{ success: boolean; data: any[]; pagination: any }>('/api/chatbot/leads', { params }),
+  reply: (id: string, text: string) =>
+    request<{ success: boolean; data: any }>(`/api/chatbot/leads/${id}/reply`, {
+      method: 'POST',
+      body: JSON.stringify({ text }),
+    }),
   delete: (id: string) =>
     request<{ success: boolean }>(`/api/chatbot/leads/${id}`, { method: 'DELETE' }),
 };

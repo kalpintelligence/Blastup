@@ -57,9 +57,21 @@
         config.welcomeText ||
         'Hello! Welcome. How can I help you today? 👋';
 
+    var collectLeads = config.collectLeads !== undefined ? !!config.collectLeads : false;
+
+    var leadFields = config.leadFields || ['name', 'email'];
+
+    var theme = config.theme || 'glassmorphic';
+
     var headerBg = gradient
       ? `linear-gradient(${gradientAngle}deg, ${primaryColor}, ${secondaryColor})`
       : primaryColor;
+
+    var buttonBg = gradient
+      ? headerBg
+      : (theme === 'glassmorphic' ? 'rgba(255, 255, 255, 0.92)' : primaryColor);
+
+    var buttonTextColor = (gradient || theme !== 'glassmorphic') ? '#ffffff' : primaryColor;
 
 
     // ------------------------------------------------------------
@@ -103,21 +115,12 @@
 
     style.textContent = `
 
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
     .blastup-widget,
     .blastup-widget * {
       box-sizing: border-box;
-    }
-
-    .blastup-widget {
-      font-family:
-        Inter,
-        -apple-system,
-        BlinkMacSystemFont,
-        "Segoe UI",
-        Roboto,
-        Helvetica,
-        Arial,
-        sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
     }
 
 
@@ -620,11 +623,11 @@
        ========================================================== */
 
     .blastup-theme-glassmorphic .blastup-widget-button {
-      background: rgba(255, 255, 255, 0.92) !important;
+      background: ${buttonBg} !important;
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
       border: 1px solid rgba(255, 255, 255, 0.8) !important;
-      color: ${primaryColor} !important;
+      color: ${buttonTextColor} !important;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2), 0 4px 12px rgba(0,0,0,0.1) !important;
       height: 42px !important;
       width: auto !important;
@@ -851,6 +854,91 @@
       transform: translateY(-1px);
       box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
     }
+
+    /* ==========================================================
+       LEAD COLLECTION FORM STYLES
+       ========================================================== */
+    .blastup-widget-lead-form {
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      flex: 1;
+      justify-content: center;
+      overflow-y: auto;
+      background: transparent;
+      z-index: 2;
+    }
+    .blastup-widget-lead-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #1e293b;
+      margin: 0 0 4px 0;
+      text-align: center;
+    }
+    .blastup-widget-lead-subtitle {
+      font-size: 12px;
+      color: #64748b;
+      margin: 0 0 10px 0;
+      text-align: center;
+      line-height: 1.4;
+    }
+    .blastup-widget-lead-field {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .blastup-widget-lead-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      text-align: left;
+    }
+    .blastup-widget-lead-input {
+      width: 100%;
+      height: 38px;
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      border-radius: 10px;
+      padding: 0 12px;
+      font-size: 13px;
+      outline: none;
+      transition: all 0.2s;
+      background: rgba(255, 255, 255, 0.8);
+      color: #1e293b;
+    }
+    .blastup-theme-glassmorphic .blastup-widget-lead-input {
+      background: rgba(255, 255, 255, 0.5) !important;
+      border: 1px solid rgba(255, 255, 255, 0.5) !important;
+      color: #1e293b !important;
+    }
+    .blastup-widget-lead-input:focus {
+      border-color: ${primaryColor} !important;
+      box-shadow: 0 0 0 3px ${primaryColor}1a !important;
+      background: rgba(255, 255, 255, 0.9) !important;
+    }
+    .blastup-widget-lead-submit {
+      width: 100%;
+      height: 40px;
+      border: none;
+      border-radius: 10px;
+      background: ${headerBg} !important;
+      color: #ffffff !important;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .blastup-widget-lead-submit:hover {
+      opacity: 0.95;
+      transform: translateY(-1px);
+    }
   `;
 
     document.head.appendChild(style);
@@ -905,8 +993,7 @@
         return presetSvgs[botIcon] || presetSvgs.bot;
     }
 
-    var buttonColor = theme === 'glassmorphic' ? primaryColor : '#ffffff';
-    button.innerHTML = getBotIconHtml(16, buttonColor) + ' <span>' + (buttonLabel || 'Chat') + '</span>';
+    button.innerHTML = getBotIconHtml(16, buttonTextColor) + ' <span>' + (buttonLabel || 'Chat') + '</span>';
 
 
     // ------------------------------------------------------------
@@ -961,11 +1048,13 @@
         type="button"
         aria-label="Close chat"
       >
-        ×
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px; display: block;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
       </button>
 
     </div>
 
+    <!-- Lead Collection Form -->
+    <form class="blastup-widget-lead-form" style="display: none;"></form>
 
     <div
       class="blastup-widget-messages"
@@ -1065,6 +1154,11 @@
             '.blastup-widget-typing'
         );
 
+    var leadForm =
+        panel.querySelector(
+            '.blastup-widget-lead-form'
+        );
+
 
     // ------------------------------------------------------------
     // STATE
@@ -1076,6 +1170,17 @@
 
     var sessionId =
         getSessionId();
+
+    var leadCollectedKey = 'blastup_lead_collected_' + chatbotId;
+    var leadDataKey = 'blastup_lead_data_' + chatbotId;
+    var capturedData = null;
+
+    try {
+        var savedData = localStorage.getItem(leadDataKey);
+        if (savedData) {
+            capturedData = JSON.parse(savedData);
+        }
+    } catch (e) {}
 
 
     // ------------------------------------------------------------
@@ -1169,42 +1274,51 @@
     // OPEN / CLOSE
     // ------------------------------------------------------------
 
+    function buildLeadForm() {
+        if (!collectLeads) return;
+
+        var html = '<div style="margin-bottom: 12px; text-align: center;">' +
+                   '<div class="blastup-widget-lead-title">Introduce yourself</div>' +
+                   '<div class="blastup-widget-lead-subtitle">We would love to know you before starting the chat.</div>' +
+                   '</div>';
+
+        leadFields.forEach(function (field) {
+            var label = field.charAt(0).toUpperCase() + field.slice(1);
+            var type = field === 'email' ? 'email' : (field === 'phone' ? 'tel' : 'text');
+            var placeholder = 'Enter your ' + field;
+            html += '<div class="blastup-widget-lead-field">' +
+                    '<label class="blastup-widget-lead-label">' + label + '</label>' +
+                    '<input class="blastup-widget-lead-input" type="' + type + '" name="' + field + '" placeholder="' + placeholder + '" required />' +
+                    '</div>';
+        });
+
+        html += '<button type="submit" class="blastup-widget-lead-submit">Start Chat</button>';
+        leadForm.innerHTML = html;
+    }
+
     function setOpen(open) {
-
         isOpen = open;
-
-
-        panel.classList.toggle(
-            'open',
-            open
-        );
-
-
-        button.setAttribute(
-            'aria-label',
-            open
-                ? 'Close chat'
-                : 'Open chat'
-        );
-
+        panel.classList.toggle('open', open);
+        button.setAttribute('aria-label', open ? 'Close chat' : 'Open chat');
 
         if (open) {
+            var isLeadCollected = !collectLeads || !!localStorage.getItem(leadCollectedKey);
 
-            if (!messages.children.length) {
+            if (!isLeadCollected) {
+                leadForm.style.display = 'flex';
+                messages.style.display = 'none';
+                form.style.display = 'none';
+                buildLeadForm();
+            } else {
+                leadForm.style.display = 'none';
+                messages.style.display = 'block';
+                form.style.display = 'flex';
 
-                addMessage(
-                    welcomeText,
-                    'bot'
-                );
+                if (!messages.children.length) {
+                    addMessage(welcomeText, 'bot');
+                }
+                setTimeout(function () { input.focus(); }, 50);
             }
-
-
-            setTimeout(
-                function () {
-                    input.focus();
-                },
-                50
-            );
         }
     }
 
@@ -1270,7 +1384,8 @@
             url: window.location.href,
             pageUrl: window.location.href,
             origin: window.location.origin,
-            chatbotId
+            chatbotId,
+            capturedData: capturedData
         });
 
         var response;
@@ -1405,6 +1520,42 @@
                 !isOpen
             );
 
+        }
+    );
+
+
+    // ------------------------------------------------------------
+    // LEAD FORM SUBMIT
+    // ------------------------------------------------------------
+
+    leadForm.addEventListener(
+        'submit',
+        function (event) {
+            event.preventDefault();
+            var data = {};
+            leadFields.forEach(function (field) {
+                var inputEl = leadForm.querySelector('[name="' + field + '"]');
+                if (inputEl) {
+                    data[field] = inputEl.value.trim();
+                }
+            });
+
+            capturedData = data;
+            try {
+                localStorage.setItem(leadCollectedKey, 'true');
+                localStorage.setItem(leadDataKey, JSON.stringify(data));
+            } catch (e) {}
+
+            leadForm.style.display = 'none';
+            messages.style.display = 'block';
+            form.style.display = 'flex';
+
+            if (!messages.children.length) {
+                addMessage(welcomeText, 'bot');
+            }
+            setTimeout(function () {
+                input.focus();
+            }, 50);
         }
     );
 

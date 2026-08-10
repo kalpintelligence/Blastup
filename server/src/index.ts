@@ -5,6 +5,7 @@ import { logger } from './config/logger';
 import { env } from './config/env';
 import { getSafeModeManager } from './config/safemode';
 import { disconnectRedis } from './config/redis';
+import { initSocket } from './services/socket.service';
 import http from 'http';
 
 async function bootstrap() {
@@ -26,6 +27,9 @@ async function bootstrap() {
     // Create Express app
     const app = createApp();
     const server = http.createServer(app);
+
+    // Initialize Socket.io
+    initSocket(server);
 
     // Start HTTP server
     server.listen(env.PORT, () => {

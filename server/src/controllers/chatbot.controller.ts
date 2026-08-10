@@ -5,6 +5,7 @@ import { ChatbotLead } from '../models/ChatbotLead';
 import { ChatbotKnowledge } from '../models/ChatbotKnowledge';
 import * as knowledgeEngine from '../services/knowledgeEngine';
 import { parsePagination, buildPaginatedResult } from '../utils/pagination';
+import { emitLeadMessage, emitChatbotStatus } from '../services/socket.service';
 
 export async function getChatbot(req: AuthRequest, res: Response, next: NextFunction) {
   try {
@@ -79,6 +80,12 @@ export async function updateChatbot(req: AuthRequest, res: Response, next: NextF
       },
       { upsert: true, new: true }
     );
+
+    // Broadcast chatbot online/offline status to all socket clients
+    emitChatbotStatus({
+      instanceId,
+      enabled: enabled !== undefined ? !!enabled : false,
+    });
 
     res.json({ success: true, data: chatbot });
   } catch (err) {
@@ -174,17 +181,19 @@ export async function handleWidgetMessage(req: Request, res: Response, next: Nex
       }
     }
 
+    const now = new Date();
+
     // Persist lead data if collectLeads is enabled and we have a sessionId
+    let savedLead: any = null;
     if (chatbot.collectLeads && sessionId) {
       try {
-        const now = new Date();
-        await ChatbotLead.findOneAndUpdate(
+        savedLead = await ChatbotLead.findOneAndUpdate(
           { instanceId: (chatbot as any).instanceId, sessionId },
           {
             $setOnInsert: {
               instanceId: (chatbot as any).instanceId,
               sessionId,
-              domain: req.body.origin || req.headers.origin || 'unknown',
+              domain: body.origin || req.headers.origin || 'unknown',
               pageUrl: url || '',
               capturedData: capturedData || {},
             },
@@ -197,11 +206,35 @@ export async function handleWidgetMessage(req: Request, res: Response, next: Nex
               },
             },
           },
-          { upsert: true }
+          { upsert: true, new: true }
         );
       } catch {
         // Non-fatal — don't fail the message if lead storage fails
       }
+    }
+
+    // ── Emit socket events ─────────────────────────────────────────────────────
+    if (savedLead) {
+      const instanceId = (chatbot as any).instanceId;
+      const basePayload = {
+        leadId: String(savedLead._id),
+        instanceId,
+        sessionId: sessionId || '',
+        domain: body.origin || req.headers.origin || 'unknown',
+        capturedData: capturedData || {},
+      };
+
+      // Emit user message
+      emitLeadMessage({
+        ...basePayload,
+        message: { sender: 'user', text: message, timestamp: now.toISOString() },
+      });
+
+      // Emit bot reply
+      emitLeadMessage({
+        ...basePayload,
+        message: { sender: 'bot', text: reply, timestamp: new Date(now.getTime() + 1).toISOString() },
+      });
     }
 
     res.json({
@@ -239,6 +272,72 @@ export async function deleteLead(req: AuthRequest, res: Response, next: NextFunc
     const { id } = req.params;
     await ChatbotLead.findOneAndDelete({ _id: id, instanceId });
     res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * POST /api/chatbot/leads/:id/reply
+ * Agent sends a reply into a lead conversation. Stored as sender:'agent' in the
+ * lead's messages array and broadcast to all socket clients.
+ */
+export async function replyToLead(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const instanceId = req.user?.id || 'default';
+    const { id } = req.params;
+    const { text } = req.body;
+
+    if (!text || typeof text !== 'string' || !text.trim()) {
+      res.status(400).json({ success: false, message: 'text is required' });
+      return;
+    }
+
+    const now = new Date();
+    const lead = await ChatbotLead.findOneAndUpdate(
+      { _id: id, instanceId },
+      {
+        $push: {
+          messages: { sender: 'agent', text: text.trim(), timestamp: now },
+        },
+      },
+      { new: true }
+    );
+
+    if (!lead) {
+      res.status(404).json({ success: false, message: 'Lead not found' });
+      return;
+    }
+
+    // Emit via socket
+    emitLeadMessage({
+      leadId: id,
+      instanceId,
+      sessionId: lead.sessionId,
+      domain: lead.domain,
+      capturedData: lead.capturedData,
+      message: { sender: 'agent', text: text.trim(), timestamp: now.toISOString() },
+    });
+
+    res.json({ success: true, data: { sender: 'agent', text: text.trim(), timestamp: now } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * GET /api/chatbot/status/:chatbotId  (public — no auth)
+ * Returns the enabled flag for a chatbot, used by the widget to show online/offline.
+ */
+export async function getChatbotStatus(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { chatbotId } = req.params;
+    const chatbot = await Chatbot.findById(chatbotId).select('enabled').lean();
+    if (!chatbot) {
+      res.json({ success: true, data: { enabled: false } });
+      return;
+    }
+    res.json({ success: true, data: { enabled: chatbot.enabled } });
   } catch (err) {
     next(err);
   }
