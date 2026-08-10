@@ -95,6 +95,7 @@ export default function ChatbotPage() {
   const [saved, setSaved] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('settings');
   const [copied, setCopied] = useState(false);
+  const [widgetCode, setWidgetCode] = useState('');
 
   // Floating Simulator state
   const [floatingOpen, setFloatingOpen] = useState(true);
@@ -137,6 +138,23 @@ export default function ChatbotPage() {
   }>>([]);
   const testEndRef = useRef<HTMLDivElement>(null);
 
+  const backendUrl = process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined'
+    ? `${window.location.protocol}//${window.location.hostname}:3001`
+    : 'http://localhost:3001');
+
+  useEffect(() => {
+    fetch(`${backendUrl}/widget.js`)
+      .then((res) => {
+        if (!res.ok) throw new Error('Status: ' + res.status);
+        return res.text();
+      })
+      .then((code) => {
+        setWidgetCode(code);
+      })
+      .catch((err) => {
+        console.error('Failed to load widget code:', err);
+      });
+  }, [backendUrl]);
 
   useEffect(() => {
     chatbotApi.get().then((res) => {
@@ -346,10 +364,6 @@ export default function ChatbotPage() {
   };
 
 
-  const backendUrl = process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined'
-    ? `${window.location.protocol}//${window.location.hostname}:3001`
-    : 'http://localhost:3001');
-
   const sOpen = '\x3Cscript\x3E';
   const sClose = '\x3C/script\x3E';
   const embedCode = [
@@ -372,8 +386,9 @@ export default function ChatbotPage() {
     `    theme: '${theme}',`,
     `    chatbotId: '${chatbotId}',`,
     '  };',
+    '',
+    widgetCode || '// Loading widget script...',
     sClose,
-    `\x3Cscript src="${backendUrl}/widget.js" async\x3E${sClose}`,
   ].join('\n');
 
   const handleCopy = () => { navigator.clipboard.writeText(embedCode); setCopied(true); setTimeout(() => setCopied(false), 2000); };
