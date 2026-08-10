@@ -207,7 +207,7 @@ const buttonSchema = z.object({
  *     responses:
  *       200:
  *         description: Button message sent successfully
-+ */
+ */
 router.post('/button', validate(buttonSchema), sendController.sendButton);
 
 const sliderSchema = z.object({
