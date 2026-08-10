@@ -60,6 +60,10 @@ export function applySecurity(app: Application): void {
     const origin = req.headers.origin || req.headers.referer || '(no-origin/file://)';
     const isPublic =
       req.path === '/widget.js' ||
+      req.path === '/robots.txt' ||
+      req.path === '/favicon.ico' ||
+      req.path.startsWith('/api/docs') ||
+      req.path.startsWith('/api/health') ||
       req.path.startsWith('/api/chatbot/message');
 
     const corsMode = isPublic ? 'OPEN (*)' : `STRICT (${env.CLIENT_URL})`;
@@ -89,6 +93,10 @@ export function applySecurity(app: Application): void {
 
       const isPublicPath =
         req.path === '/widget.js' ||
+        req.path === '/robots.txt' ||
+        req.path === '/favicon.ico' ||
+        req.path.startsWith('/api/docs') ||
+        req.path.startsWith('/api/health') ||
         req.path.startsWith('/api/chatbot/message');
 
       if (isPublicPath || req.headers.origin) {

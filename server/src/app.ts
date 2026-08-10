@@ -86,6 +86,31 @@ export function createApp(): express.Application {
     )
   );
 
+  // ── Static file serving: robots.txt ─────────────────────────────
+  app.use(
+    '/robots.txt',
+    express.static(
+      path.resolve(process.cwd(), 'public/robots.txt'),
+      {
+        index: false,
+        dotfiles: 'deny',
+        fallthrough: false,
+        setHeaders: (res) => {
+          res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+          res.setHeader('Cache-Control', 'public, max-age=86400');
+        },
+      }
+    )
+  );
+
+  // ── Favicon fallback: return 204 to avoid 404 logs ──────────────
+  app.get('/favicon.ico', (req, res) => {
+    res.status(204).end();
+  });
+
+
   // ── Swagger API Docs ────────────────────────────────────────────
   const swaggerSpec = swaggerJsdoc({
     definition: {
