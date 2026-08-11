@@ -13,12 +13,13 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
+
 # Production image
 FROM base AS runner
 ENV NODE_ENV=production
 
 RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 express
+  adduser --system --uid 1001 express
 
 # Copy built files
 COPY --from=deps /app/node_modules ./node_modules
@@ -27,7 +28,7 @@ COPY --from=builder /app/package.json ./
 
 # Create required directories
 RUN mkdir -p sessions uploads logs && \
-    chown -R express:nodejs sessions uploads logs
+  chown -R express:nodejs sessions uploads logs
 
 USER express
 
