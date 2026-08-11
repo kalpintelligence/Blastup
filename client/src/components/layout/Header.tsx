@@ -1,10 +1,11 @@
 'use client';
 
-import { UserCircle, LogOut, ChevronDown, Wifi, WifiOff, Info } from 'lucide-react';
+import { UserCircle, LogOut, ChevronDown, Wifi, WifiOff, Info, Menu } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { authApi, whatsappApi } from '@/lib/api';
 import { logout } from '@/lib/auth';
+import { useMobileNav } from '@/components/layout/DashboardShell';
 
 interface HeaderProps {
   title: string;
@@ -20,6 +21,8 @@ interface ProfileState {
 }
 
 export default function Header({ title, subtitle }: HeaderProps) {
+  const { toggleMobileSidebar } = useMobileNav();
+
   const [profile, setProfile] = useState<ProfileState>({
     displayName: 'Loading...',
     subtext: '',
@@ -85,38 +88,27 @@ export default function Header({ title, subtitle }: HeaderProps) {
 
   return (
     <header className="page-header">
-      <div>
-        <h1 className="page-title">{title}</h1>
-        {subtitle && <p className="page-subtitle">{subtitle}</p>}
+      <div className="header-left">
+        {/* Mobile hamburger menu */}
+        <button
+          className="mobile-menu-toggle"
+          onClick={toggleMobileSidebar}
+          aria-label="Open Sidebar"
+        >
+          <Menu size={22} />
+        </button>
+        <div>
+          <h1 className="page-title">{title}</h1>
+          {subtitle && <p className="page-subtitle">{subtitle}</p>}
+        </div>
       </div>
 
-      <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div className="header-actions">
         {/* About Us Link in Top Bar */}
         <Link
           href="/about"
           id="topbar-about-us"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            padding: '7px 14px',
-            borderRadius: 8,
-            border: '1px solid var(--color-border, #e2e8f0)',
-            backgroundColor: 'var(--color-surface, #ffffff)',
-            color: 'var(--color-text, #0f172a)',
-            fontSize: 13,
-            fontWeight: 600,
-            textDecoration: 'none',
-            transition: 'all 0.15s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = '#f8fafc';
-            e.currentTarget.style.borderColor = '#cbd5e1';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--color-surface, #ffffff)';
-            e.currentTarget.style.borderColor = 'var(--color-border, #e2e8f0)';
-          }}
+          className="about-us-link"
         >
           <Info size={15} style={{ color: '#16a34a' }} />
           <span>About Us</span>
@@ -145,7 +137,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
               </div>
             )}
 
-            <div style={{ paddingRight: 4 }}>
+            <div className="profile-text-wrapper" style={{ paddingRight: 4 }}>
               <div className="font-semibold text-sm" style={{ lineHeight: 1.1 }}>
                 {profile.displayName}
               </div>

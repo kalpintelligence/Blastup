@@ -90,7 +90,7 @@ export default function DashboardPage() {
       <div className="page-content">
         
         {/* Top 4 KPI Metrics Row */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 20, marginBottom: 24 }}>
+        <div className="grid-stats">
           {loading ? (
             <>
               <SkeletonStatCard />
@@ -160,7 +160,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Middle Insights Row (Nexus Weekly Volume Bar Chart + Activity) */}
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 20, marginBottom: 24 }}>
+        <div className="grid-2-1" style={{ marginBottom: 24 }}>
           
           {/* Main Visual Chart: Message Traffic Overview */}
           <div className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
@@ -256,7 +256,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Bottom Section: Recent Audit Log Activity & Quick Actions */}
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 20 }}>
+        <div className="grid-2-1">
           
           {/* Live Recent System Events Log Feed */}
           <div className="card">

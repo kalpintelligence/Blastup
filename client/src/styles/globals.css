@@ -698,6 +698,20 @@ a {
 .font-mono { font-family: 'Courier New', Courier, monospace; }
 
 
+/* ── Responsive Grid Utilities ── */
+.grid-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.grid-2-1 {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+}
+
 /* ── Component Utilities ── */
 
 /* Badges */
@@ -1451,4 +1465,311 @@ tr:hover td {
   50% { transform: translateY(-3px); }
 }
 
+/* ── Mobile Sidebar Close Button (hidden on desktop) ── */
+.sidebar-close-btn {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  transition: all 0.15s ease;
+  margin-left: auto;
+}
+
+.sidebar-close-btn:hover {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
+
+/* ── About Us Link Styling ── */
+.about-us-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.about-us-link:hover {
+  background-color: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+/* ── Header Left Area ── */
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Mobile Hamburger Toggle (hidden on desktop) */
+.mobile-menu-toggle {
+  display: none;
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  cursor: pointer;
+  padding: 6px;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.mobile-menu-toggle:hover {
+  background-color: var(--color-bg);
+}
+
+/* ── Mobile Sidebar Backdrop ── */
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 49;
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   RESPONSIVE — Tablet Breakpoint (≤ 768px)
+   ══════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  /* Show hamburger button */
+  .mobile-menu-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Show close button inside sidebar */
+  .sidebar-close-btn {
+    display: flex;
+  }
+
+  /* Show backdrop when sidebar is open */
+  .sidebar-open .sidebar-backdrop {
+    display: block;
+  }
+
+  /* Sidebar becomes a drawer — hidden off-screen by default */
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: none;
+    z-index: 50;
+  }
+
+  /* Slide sidebar in when open */
+  .sidebar.mobile-open,
+  .sidebar-open .sidebar {
+    transform: translateX(0);
+    box-shadow: var(--shadow-lg);
+  }
+
+  /* Main content takes full width */
+  .main-wrapper,
+  .main-content {
+    margin-left: 0;
+  }
+
+  /* Reduce header padding */
+  .page-header {
+    padding: 0 16px;
+    height: 60px;
+  }
+
+  .page-title {
+    font-size: 18px;
+  }
+
+  /* Reduce content padding */
+  .page-content {
+    padding: 16px;
+  }
+
+  /* Hide the "About Us" link text on tablet, keep icon */
+  .about-us-link span {
+    display: none;
+  }
+
+  .about-us-link {
+    padding: 7px 8px;
+  }
+
+  /* Compact profile badge */
+  .profile-text-wrapper {
+    display: none;
+  }
+
+  .user-profile-badge {
+    padding: 4px;
+  }
+
+  /* Header search takes less space */
+  .header-search {
+    width: 180px;
+  }
+
+  /* Cards reduce padding */
+  .card {
+    padding: 16px;
+  }
+
+  /* Chat split-pane — stack vertically */
+  .whatsapp-split-pane {
+    flex-direction: column;
+    height: auto;
+    min-height: calc(100vh - 60px);
+  }
+
+  .chats-sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--color-border);
+    max-height: 300px;
+  }
+
+  .chat-window {
+    min-height: 400px;
+  }
+
+  .chat-item {
+    padding: 12px 16px;
+  }
+
+  .chat-window-messages {
+    padding: 16px;
+  }
+
+  /* Metric values slightly smaller */
+  .metric-value {
+    font-size: 26px;
+  }
+
+  /* Modals take more width */
+  .modal-card {
+    max-width: 92%;
+  }
+
+  /* Grid utilities stack on tablet */
+  .grid-2-1 {
+    grid-template-columns: 1fr;
+  }
+
+  .grid-stats {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   RESPONSIVE — Small Mobile Breakpoint (≤ 480px)
+   ══════════════════════════════════════════════════════════════ */
+@media (max-width: 480px) {
+  .page-header {
+    padding: 0 12px;
+    height: 56px;
+    gap: 8px;
+  }
+
+  .page-title {
+    font-size: 16px;
+  }
+
+  .page-content {
+    padding: 12px;
+  }
+
+  /* Sidebar full-screen width on small phones */
+  .sidebar {
+    width: 280px;
+  }
+
+  /* Header search disappears */
+  .header-search {
+    display: none;
+  }
+
+  /* About link hide entirely */
+  .about-us-link {
+    display: none;
+  }
+
+  /* Cards even tighter */
+  .card {
+    padding: 14px;
+    border-radius: var(--radius-md);
+  }
+
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  /* Buttons become full width in small views */
+  .btn {
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+
+  /* Table cells tighter */
+  th, td {
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+
+  /* Chat composer tighter */
+  .chat-window-composer {
+    padding: 8px 12px;
+  }
+
+  /* QR code smaller */
+  .qr-frame img {
+    width: 160px;
+    height: 160px;
+  }
+
+  /* Metric value even smaller */
+  .metric-value {
+    font-size: 22px;
+  }
+
+  /* Login card tighter */
+  .login-card {
+    padding: 24px;
+  }
+
+  /* Modal full width */
+  .modal-card {
+    max-width: 100%;
+    border-radius: var(--radius-md);
+  }
+
+  .modal-overlay {
+    padding: 12px;
+  }
+
+  /* Chat split-pane — chats sidebar smaller */
+  .chats-sidebar {
+    max-height: 250px;
+  }
+
+  /* Message bubbles wider on small screens */
+  .message-bubble {
+    max-width: 85%;
+  }
+}
 

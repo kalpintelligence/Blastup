@@ -6,18 +6,23 @@ import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Wifi, MessageSquare, Users,
-  Send, Megaphone, BookOpen, Key, LogOut, Minus, Plus, Folder
+  Send, Megaphone, BookOpen, Key, LogOut, Minus, Plus, Folder, X
 } from 'lucide-react';
 import { logout } from '@/lib/auth';
 
-export default function Sidebar() {
+interface SidebarProps {
+  mobileOpen?: boolean;
+  onClose?: () => void;
+}
+
+export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const [chatbotOpen, setChatbotOpen] = useState(true);
 
   const isChatbotActive = pathname.startsWith('/chatbot');
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${mobileOpen ? 'mobile-open' : ''}`}>
       {/* Header / Brand with logo.svg */}
       <div className="sidebar-header">
         <Image
@@ -28,6 +33,16 @@ export default function Sidebar() {
           style={{ objectFit: 'contain' }}
           priority
         />
+        {/* Mobile close button */}
+        {onClose && (
+          <button
+            className="sidebar-close-btn"
+            onClick={onClose}
+            aria-label="Close Sidebar"
+          >
+            <X size={20} />
+          </button>
+        )}
       </div>
 
       {/* Navigation Groups */}

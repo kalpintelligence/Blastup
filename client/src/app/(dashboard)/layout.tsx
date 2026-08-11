@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import Sidebar from '@/components/layout/Sidebar';
+import DashboardShell from '@/components/layout/DashboardShell';
 
 export const metadata: Metadata = {
   title: {
@@ -35,11 +35,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
   }
 
   return (
-    <div className="app-layout">
-      <Sidebar />
-      <main className="main-wrapper">
-        {children}
-      </main>
-    </div>
+    <DashboardShell>
+      {children}
+    </DashboardShell>
   );
 }
