@@ -855,11 +855,11 @@ export default function LandingPage() {
       {/* ── FOOTER & WATERMARK ── */}
       <footer style={{
         borderTop: '1px solid #e2e8f0',
-        paddingTop: 80, paddingBottom: 40,
+        paddingTop: 60, paddingBottom: 40,
         background: '#ffffff',
         position: 'relative', overflow: 'hidden',
       }}>
-        {/* Subtle dot grid watermark instead of brand text */}
+        {/* Subtle dot grid watermark */}
         <div style={{
           position: 'absolute', inset: 0,
           backgroundImage: 'radial-gradient(circle, rgba(15,23,42,0.04) 1px, transparent 1px)',
@@ -869,22 +869,49 @@ export default function LandingPage() {
 
         <div style={{
           maxWidth: 1100, margin: '0 auto', paddingLeft: 24, paddingRight: 24,
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 20,
+          display: 'flex', flexDirection: 'column', gap: 24,
           position: 'relative', zIndex: 1,
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            {/* Real Logo */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.svg" alt="Logo" style={{ height: 28, objectFit: 'contain' }} onError={(e) => (e.currentTarget.style.display = 'none')} />
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 20,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo.svg" alt="Logo" style={{ height: 28, objectFit: 'contain' }} onError={(e) => (e.currentTarget.style.display = 'none')} />
+              <span style={{ fontSize: 13, color: '#64748b' }}>
+                Open-Source WhatsApp Automation
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', gap: 24, fontSize: 13, alignItems: 'center' }}>
+              <Link href="/about" style={{ color: '#475569', textDecoration: 'none', fontWeight: 600 }}>About Us</Link>
+              <Link href="/docs" style={{ color: '#475569', textDecoration: 'none', fontWeight: 600 }}>API Docs</Link>
+              <Link href="/login" style={{ color: '#0f172a', textDecoration: 'none', fontWeight: 600 }}>Sign In</Link>
+              <Link href="/dashboard" style={{ color: '#16a34a', textDecoration: 'none', fontWeight: 700 }}>Dashboard →</Link>
+            </div>
           </div>
 
-          <div style={{ fontSize: 13, color: '#64748b' }}>
-            © 2026 Blastup Platform. All rights reserved.
-          </div>
-
-          <div style={{ display: 'flex', gap: 20, fontSize: 13 }}>
-            <Link href="/login" style={{ color: '#0f172a', textDecoration: 'none', fontWeight: 600 }}>Sign In</Link>
-            <Link href="/dashboard" style={{ color: '#16a34a', textDecoration: 'none', fontWeight: 700 }}>Dashboard →</Link>
+          <div style={{
+            borderTop: '1px solid #f1f5f9',
+            paddingTop: 20,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12,
+            fontSize: 13, color: '#64748b',
+          }}>
+            <div>
+              © 2026 Blastup Platform. Released under MIT Open Source License.
+            </div>
+            {/* NON-EDITABLE BRANDING - Developed by Kalp Intelligence */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span>Developed by</span>
+              <a
+                href="https://kalpintelligence.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: '#16a34a', fontWeight: 700, textDecoration: 'none' }}
+              >
+                Kalp Intelligence
+              </a>
+            </div>
           </div>
         </div>
       </footer>

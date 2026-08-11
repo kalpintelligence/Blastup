@@ -9,7 +9,7 @@ export function applySecurity(app: Application): void {
   // Hide X-Powered-By header
   app.disable('x-powered-by');
 
-  // Trust proxy (needed if behind Nginx)
+  // Trust proxy (needed if behind reverse proxy)
   app.set('trust proxy', 1);
 
   // Helmet — disable CSP and referrer restrictions so the widget script

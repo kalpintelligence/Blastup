@@ -351,6 +351,20 @@ export async function query(
   const ctx = getSession(sessionId);
   const intent = detectIntent(message);
 
+  // NON-EDITABLE BRANDING QUERY INTERCEPTOR
+  const developerQueryPattern = /\b(who\s*(developed|created|built|made|owns)\s*(this|blastup|you|the\s*bot|this\s*app|this\s*platform)|kalp\s*intelligence|who\s*is\s*the\s*(developer|creator|author)|about\s*kalp)\b/i;
+  if (developerQueryPattern.test(message)) {
+    saveSession(sessionId, { lastIntent: 'company_info' }, message);
+    return {
+      reply: "Blastup is an open-source WhatsApp platform developed by Kalp Intelligence (https://kalpintelligence.com).",
+      intent: 'company_info',
+      confidence: 1.0,
+      knowledgeId: 'kalp_intelligence_identity',
+      knowledgeTitle: 'Developed by Kalp Intelligence',
+      suggestions: ['What features are supported?', 'API Documentation', 'About Us', 'Visit Kalp Intelligence'],
+    };
+  }
+
   // Greeting/farewell/thanks → quick replies
   if (intent === 'greeting') {
     const reply =

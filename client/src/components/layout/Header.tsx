@@ -1,6 +1,6 @@
 'use client';
 
-import { UserCircle, LogOut, ChevronDown, Wifi, WifiOff } from 'lucide-react';
+import { UserCircle, LogOut, ChevronDown, Wifi, WifiOff, Info } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { authApi, whatsappApi } from '@/lib/api';
@@ -90,7 +90,38 @@ export default function Header({ title, subtitle }: HeaderProps) {
         {subtitle && <p className="page-subtitle">{subtitle}</p>}
       </div>
 
-      <div className="header-actions">
+      <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        {/* About Us Link in Top Bar */}
+        <Link
+          href="/about"
+          id="topbar-about-us"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '7px 14px',
+            borderRadius: 8,
+            border: '1px solid var(--color-border, #e2e8f0)',
+            backgroundColor: 'var(--color-surface, #ffffff)',
+            color: 'var(--color-text, #0f172a)',
+            fontSize: 13,
+            fontWeight: 600,
+            textDecoration: 'none',
+            transition: 'all 0.15s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#f8fafc';
+            e.currentTarget.style.borderColor = '#cbd5e1';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'var(--color-surface, #ffffff)';
+            e.currentTarget.style.borderColor = 'var(--color-border, #e2e8f0)';
+          }}
+        >
+          <Info size={15} style={{ color: '#16a34a' }} />
+          <span>About Us</span>
+        </Link>
+
         {/* Profile Dropdown */}
         <div ref={dropdownRef} style={{ position: 'relative' }}>
           <button
@@ -193,6 +224,25 @@ export default function Header({ title, subtitle }: HeaderProps) {
                 >
                   <UserCircle size={15} style={{ color: 'var(--color-text-secondary)' }} />
                   My Profile
+                </Link>
+
+                <Link
+                  href="/about"
+                  onClick={() => setDropdownOpen(false)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '9px 16px',
+                    fontSize: 13,
+                    color: 'var(--color-text)',
+                    transition: 'background-color 0.1s ease',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--color-bg)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                >
+                  <Info size={15} style={{ color: '#16a34a' }} />
+                  About Us
                 </Link>
 
                 <div style={{ height: '1px', backgroundColor: 'var(--color-border-subtle)', margin: '4px 0' }} />

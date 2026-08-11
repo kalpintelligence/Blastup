@@ -1,9 +1,12 @@
-# WhatsApp Automation Platform
+# 🚀 Blastup — Open-Source WhatsApp Automation Platform
 
-> **A production-ready, highly secure, and scalable self-hosted WhatsApp automation platform.** Built with Next.js, Node.js/Express, MongoDB, and Baileys.
+> **A production-ready, highly secure, and scalable self-hosted WhatsApp automation platform.** Built with Next.js, Node.js/Express, Baileys, and MongoDB.
 
-![License](https://img.shields.io/badge/license-MIT-blue)
-![Stack](https://img.shields.io/badge/stack-Next.js%20%7C%20Express%20%7C%20MongoDB-green)
+Developed and maintained with ❤️ by **[Kalp Intelligence](https://kalpintelligence.com)**.
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
+[![Node Version](https://img.shields.io/badge/node-%3E%3D18.0.0-blue.svg)](https://nodejs.org/)
+[![Developed By](https://img.shields.io/badge/Developed%20By-Kalp%20Intelligence-16a34a.svg)](https://kalpintelligence.com)
 
 ---
 
@@ -11,223 +14,231 @@
 
 1. [Platform Overview](#-platform-overview)
 2. [Key Features](#-key-features)
-3. [Architecture & Tech Stack](#-architecture--tech-stack)
-4. [Getting Started (Local Development)](#-getting-started-local-development)
-5. [Production Deployment](#-production-deployment)
-6. [Security Implementation](#-security-implementation)
-7. [API Documentation & Examples](#-api-documentation--examples)
-8. [Troubleshooting & FAQ](#-troubleshooting--faq)
+3. [Quick Start (One-Command Setup Wizard)](#-quick-start-one-command-setup-wizard)
+4. [Manual Installation Guide](#-manual-installation-guide)
+5. [Environment Variables Matrix](#-environment-variables-matrix)
+6. [Architecture & Tech Stack](#-architecture--tech-stack)
+7. [Docker Deployment](#-docker-deployment)
+8. [API Documentation & Examples](#-api-documentation--examples)
+9. [Security Implementation](#-security-implementation)
+10. [Troubleshooting & FAQ](#-troubleshooting--faq)
+11. [License & Attribution](#-license--attribution)
 
 ---
 
 ## 🌟 Platform Overview
 
-The **WhatsApp Automation Platform** is a full-stack monorepo designed to manage a WhatsApp connection programmatically while providing a beautiful, Notion-inspired dashboard to monitor and interact with the service.
+**Blastup** is an open-source WhatsApp communication and automation platform engineered by **[Kalp Intelligence](https://kalpintelligence.com)**.
 
-Unlike SaaS alternatives that charge per message or per month, this platform is completely self-hosted, ensuring that **your messages, contacts, and API keys never leave your infrastructure.** It connects directly to WhatsApp Web's socket API using the `Baileys` library.
+Unlike proprietary SaaS alternatives that charge per message or require Meta Cloud API fees, Blastup is completely self-hosted, keeping **your messages, contacts, and API credentials 100% private on your own infrastructure.** It connects directly to WhatsApp Web's socket protocol using `@whiskeysockets/baileys`.
 
 ---
 
 ## ✨ Key Features
 
-### 🛡️ Security First
-- **Zero-Trust Auth:** No signups. Accounts are strictly provisioned by the admin via seed scripts.
-- **Stateless JWTs:** Uses `HttpOnly`, `Secure`, `SameSite=Strict` cookies. No tokens in local storage.
-- **Brute-Force Protection:** Rate limiting and automatic 30-minute account lockouts after 5 failed attempts.
-- **Injection Proof:** Strict `Zod` validation on all endpoints + NoSQL injection sanitization.
+### 🤖 Conversational AI & Knowledge Engine
+- **Intent-Driven Matching:** Built-in keyword and intent scoring engine engineered by Kalp Intelligence.
+- **Automated Lead Capture:** Intercept customer queries and log interested leads in real time.
+- **Immutable Brand Identity:** Non-editable identity rules built into the engine to guarantee accurate attribution to Kalp Intelligence.
 
-### 📱 WhatsApp Integration
-- **Persistent Sessions:** Scan the QR code once. The session is saved to the disk and automatically restored on restarts.
-- **Auto-Reconnect:** Built-in exponential backoff for network drops.
-- **Full Sync:** Automatically synchronizes contacts, chat history, and new messages to MongoDB.
-- **Media Support:** Send text, images, videos, audio, and documents with auto-MIME validation.
+### 📱 WhatsApp Multi-Device Integration
+- **Persistent Sessions:** Scan QR code once. Disk-backed session state automatically reconnects on server restarts.
+- **Multi-Media Support:** Send text, image, video, document, audio, button, and slider messages with MIME validation.
+- **SafeMode Anti-Ban Architecture:** Dynamic dispatch throttling, human behavior simulation, and message rotation to safeguard your accounts.
 
-### 📊 Dashboard & Monitoring
-- **Real-time Stats:** Monitor RAM usage, MongoDB status, and WhatsApp connection state.
-- **Audit Logging:** Every login, failed attempt, and WhatsApp state change is logged and auto-deleted after 30 days.
-- **Swagger UI:** Built-in interactive API documentation at `/api/docs`.
+### 📢 Broadcast Campaign Management
+- **Bulk Messaging:** Upload CSV/JSON contact lists and broadcast targeted multi-channel campaigns.
+- **Real-Time Delivery Stats:** Monitor pending, sent, delivered, and failed message statuses.
 
----
-
-## 🏗️ Architecture & Tech Stack
-
-The repository is structured as a Monorepo:
-
-### 1. Backend (Server)
-- **Node.js + Express:** High-performance REST API.
-- **TypeScript:** Strict typing for all controllers, services, and middleware.
-- **Mongoose + MongoDB:** Data persistence for chats, contacts, messages, and logs.
-- **Baileys:** The core WhatsApp Web socket library.
-- **Pino & Winston:** Pino for silent Baileys internal logging, Winston for structured application logging.
-
-### 2. Frontend (Client)
-- **Next.js 14 (App Router):** Fast, React-based dashboard.
-- **Vanilla CSS:** Custom design system without heavy frameworks like Tailwind, keeping CSS payload under 20kb.
-- **Lucide Icons:** Clean, lightweight SVG icons.
-- **Client-Side Fetching:** Optimized API wrappers with automatic session cookie forwarding.
+### 🛡️ Enterprise Security
+- **Zero-Trust Auth:** Admin accounts strictly provisioned via CLI seed scripts.
+- **Stateless HTTP-Only Cookies:** Secure JWTs stored in `HttpOnly`, `SameSite=Strict` cookies.
+- **Brute-Force & Rate Limiting:** Automatic 30-minute lockout after 5 failed login attempts.
+- **Sanitised Queries:** `express-mongo-sanitize` + `Zod` validation on all REST endpoints.
 
 ---
 
-## 🚀 Getting Started (Local Development)
+## ⚡ Quick Start (One-Command Setup Wizard)
 
-### 1. Prerequisites
-- **Node.js** `v18.0.0` or higher
-- **MongoDB** running locally on port `27017` (or a remote URI)
+Blastup comes with an interactive CLI setup wizard (`setup.sh`) that asks you for your environment preferences (`.env`), database details, JWT secrets, and admin credentials, and automatically generates secure 64-character tokens if left blank.
 
-### 2. Configure Environment
-Create the environment file at the root of the project:
+### Run the Setup Wizard:
+
 ```bash
-cp .env.example .env
-```
-Edit `.env` and provide secure values for `JWT_SECRET` and `COOKIE_SECRET` (generate them using `openssl rand -hex 32`).
+# Clone the repository
+git clone https://github.com/kalpintelligence/blastup.git
+cd blastup
 
-### 3. Install Dependencies
-Install packages for both the server and the client using the root script:
-```bash
-npm run install:all
+# Run the interactive setup script
+npm run setup
+# OR: bash setup.sh
 ```
 
-### 4. Create Admin Account
-Before you can log in, you must seed the database with the initial admin user. The credentials will be pulled from `ADMIN_USERNAME` and `ADMIN_PASSWORD` in your `.env` file.
-```bash
-npm run seed
-```
+The interactive wizard will:
+1. Check Node.js (`>=18`) and npm prerequisites.
+2. Prompt for server port, MongoDB URI, JWT secret, and admin credentials.
+3. Automatically generate `server/.env` and `client/.env.local`.
+4. Install all dependencies across root, client, and server (`npm run install:all`).
+5. Seed initial admin user data (`npm run seed`).
 
-### 5. Start the Monorepo
-Run both the Next.js frontend and Express backend concurrently:
+After setup completes, start the dev environment:
+
 ```bash
 npm run dev
 ```
 
-- **Dashboard:** [http://localhost:3000](http://localhost:3000)
+- **Dashboard UI:** [http://localhost:3000](http://localhost:3000)
 - **API Server:** [http://localhost:3001](http://localhost:3001)
 - **Swagger Docs:** [http://localhost:3001/api/docs](http://localhost:3001/api/docs)
 
 ---
 
-## 🌍 Production Deployment
+## 🛠️ Manual Installation Guide
 
-This platform includes production-ready Docker and PM2 configurations.
+If you prefer to configure Blastup manually:
 
-### Option A: Docker Compose (Recommended)
-This approach sets up MongoDB, the Node.js API, and the Next.js client in isolated containers with auto-restart policies.
+### 1. Prerequisites
+- **Node.js** `v18.0.0` or higher
+- **MongoDB** running locally on port `27017` (or a remote MongoDB connection string)
 
+### 2. Configure Environment Files
+
+Create `server/.env`:
 ```bash
-# 1. Prepare environment variables
-cp .env.example .env
-nano .env # Set NODE_ENV=production and secure passwords
-
-# 2. Build and start containers in the background
-docker compose up -d --build
-
-# 3. Seed the admin account (Run once)
-docker exec wa_server node dist/scripts/seed.js
+cp .env.example server/.env
 ```
 
-### Option B: PM2 on a VPS (Ubuntu/Debian)
-If you prefer running directly on the host machine:
-
+Generate secure secrets for `JWT_SECRET` and `COOKIE_SECRET`:
 ```bash
-# 1. Build projects
-npm run build
-
-# 2. Start using the ecosystem config
-pm2 start ecosystem.config.js --env production
-
-# 3. Save PM2 state for reboots
-pm2 save
-pm2 startup
+openssl rand -hex 32
 ```
 
-### Reverse Proxy (Nginx)
-Use the provided `nginx/nginx.conf` as a template. It includes:
-- SSL/TLS configuration
-- Path routing (`/api/` -> Express, `/` -> Next.js)
-- Rate limiting zones
-- Security headers (HSTS, X-Frame-Options)
+Create `client/.env.local`:
+```env
+NEXT_PUBLIC_API_URL=http://localhost:3001
+```
+
+### 3. Install Dependencies
+```bash
+npm run install:all
+```
+
+### 4. Seed Admin Credentials
+```bash
+npm run seed
+```
+
+### 5. Start Development Servers
+```bash
+npm run dev
+```
 
 ---
 
-## 🔒 Security Implementation
+## 📋 Environment Variables Matrix
 
-Security is a primary focus. Here is how common attack vectors are mitigated:
+| Variable | Scope | Default Value | Description |
+| :--- | :--- | :--- | :--- |
+| `PORT` | Server | `3001` | Express API port |
+| `MONGODB_URI` | Server | `mongodb://localhost:27017/wa_platform` | MongoDB connection URI |
+| `JWT_SECRET` | Server | *Random 64-char hex* | Secret key for JWT signing |
+| `JWT_EXPIRES_IN` | Server | `24h` | Expiration window for JWT tokens |
+| `COOKIE_SECRET` | Server | *Random 64-char hex* | Cookie signature secret |
+| `ADMIN_USERNAME` | Server | `admin` | Username for seed script |
+| `ADMIN_PASSWORD` | Server | `admin123` | Password for seed script |
+| `CLIENT_URL` | Server | `http://localhost:3000` | Allowed CORS origin |
+| `NEXT_PUBLIC_API_URL` | Client | `http://localhost:3001` | Backend API URL for frontend |
 
-| Threat Vector | Mitigation Strategy |
-|---------------|---------------------|
-| **XSS (Cross-Site Scripting)** | Next.js auto-escapes React variables. API uses Helmet for strict Content Security Policies (CSP). |
-| **CSRF (Cross-Site Request Forgery)** | Authentication relies on `SameSite=Strict` cookies, preventing cross-origin credential attachment. |
-| **Session Hijacking** | Tokens are hashed (SHA-256) before storing in MongoDB. A stolen database leak will not reveal valid tokens. |
-| **Brute Force Attacks** | Configurable rate-limiting. Default: 5 failed logins triggers a 30-minute lock for the IP/Username. |
-| **NoSQL Injection** | `express-mongo-sanitize` strips `$` and `.` operators from all incoming JSON bodies and query strings. |
-| **Path Traversal** | File uploads are rigorously validated. Paths are normalized using `path.join` and checked against the base upload directory. |
+---
+
+## 🏗️ Architecture & Tech Stack
+
+```
+blastup/
+├── client/              # Next.js 14 Dashboard UI (React 18, Custom CSS, Lucide Icons)
+├── server/              # Express API Server (Node.js, TypeScript, Baileys WebSocket)
+├── setup.sh             # Interactive Setup Wizard CLI
+├── docker-compose.yml   # Multi-container Docker deployment
+└── LICENSE              # MIT License (Kalp Intelligence)
+```
+
+- **Backend:** Node.js, Express, TypeScript, Mongoose, Baileys WebSocket, Pino, Winston.
+- **Frontend:** Next.js 14 (App Router), Vanilla CSS, Lucide Icons, SWR.
+- **Database:** MongoDB 7.0+.
+
+---
+
+## 🐳 Docker Deployment
+
+Run Blastup containerized with Docker Compose:
+
+```bash
+# 1. Run interactive setup to create environment files
+npm run setup
+
+# 2. Build and launch containers
+docker-compose up -d --build
+
+# 3. Seed admin account inside server container
+docker exec wa_server node dist/scripts/seed.js
+```
 
 ---
 
 ## 💻 API Documentation & Examples
 
-A fully interactive Swagger/OpenAPI 3.0 playground is available at `/api/docs`. 
+Interactive OpenAPI/Swagger 3.0 documentation is available at `/api/docs`.
 
-All `/api/whatsapp/*`, `/api/chats/*`, and `/api/send/*` routes require a valid session cookie.
+### Example: Send Text Message via cURL
 
-### Example: Sending a Text Message
-
-**Using cURL:**
 ```bash
 curl -X POST http://localhost:3001/api/send/text \
   -H "Content-Type: application/json" \
   -H "Cookie: wa_token=<YOUR_SESSION_TOKEN>" \
-  -d '{"to": "919876543210", "text": "Hello from WA Platform!"}'
+  -d '{"to": "919876543210", "text": "Hello from Blastup Open Source!"}'
 ```
 
-**Using Fetch (JavaScript):**
-```javascript
-const response = await fetch('http://localhost:3001/api/send/text', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json'
-    // Note: 'credentials: include' must be set in browsers to send cookies
-  },
-  body: JSON.stringify({
-    to: '919876543210',
-    text: 'Hello from WA Platform!'
-  })
-});
-const data = await response.json();
-```
+### Example: Send Image via cURL
 
-### Example: Sending an Image
-
-When sending media, use `multipart/form-data`.
-
-**Using cURL:**
 ```bash
 curl -X POST http://localhost:3001/api/send/image \
   -H "Cookie: wa_token=<YOUR_SESSION_TOKEN>" \
   -F "to=919876543210" \
-  -F "caption=Here is the invoice" \
-  -F "file=@/path/to/local/invoice.jpg"
+  -F "caption=Here is your document" \
+  -F "file=@/path/to/image.jpg"
 ```
+
+---
+
+## 🛡️ Security Implementation
+
+| Threat Vector | Protection Mechanism |
+| :--- | :--- |
+| **XSS** | React output auto-escaping + Helmet security headers |
+| **CSRF** | `SameSite=Strict` HTTP-Only cookie storage |
+| **Brute Force** | IP rate-limiting with 30-min account lockouts |
+| **NoSQL Injection** | `express-mongo-sanitize` stripping `$` and `.` operators |
+| **Input Validation** | Strict `Zod` schemas on all HTTP handlers |
 
 ---
 
 ## 🛠️ Troubleshooting & FAQ
 
-**Q: I get `Error: listen EADDRINUSE: address already in use :::3000`**  
-**A:** Another process is using port 3000 or 3001. Run `killall -9 node` or use `lsof -ti :3000 | xargs kill -9` to free the ports.
+**Q: Port 3000 or 3001 is already in use.**  
+**A:** Free the port with `lsof -ti :3000 | xargs kill -9` or edit `.env` port numbers.
 
-**Q: WhatsApp keeps disconnecting or logging out.**  
-**A:** Ensure your `SESSION_DIR` is persistent. If using Docker, ensure the `server_sessions` volume is properly mapped. If the session folder is wiped on restart, you will have to re-scan the QR code.
+**Q: WhatsApp QR Code disconnects or does not load.**  
+**A:** Ensure your `SESSION_DIR` is persistent and writable. Click "Reconnect" on the WhatsApp dashboard page to force a fresh QR trigger.
 
-**Q: Cannot send files larger than 1MB.**  
-**A:** Check the `MAX_FILE_SIZE` variable in your `.env`. Also, if using Nginx, ensure `client_max_body_size` is set high enough (e.g., `client_max_body_size 12M;`).
-
-**Q: The dashboard loads but shows "Not connected" and no QR code.**  
-**A:** Click the "Reconnect" button on the WhatsApp page. If the Baileys socket closed due to a timeout, this forces a fresh connection attempt and will generate a new QR code.
+**Q: Who developed Blastup?**  
+**A:** Blastup is an open-source project developed and maintained by **[Kalp Intelligence](https://kalpintelligence.com)**.
 
 ---
 
-## 📄 License
+## 📄 License & Attribution
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is open source under the **[MIT License](LICENSE)**.
 
-It is not affiliated with, endorsed, or sponsored by WhatsApp or Meta Platforms, Inc. Usage of this software must comply with WhatsApp's Terms of Service.
+Copyright (c) 2026 **Kalp Intelligence** ([https://kalpintelligence.com](https://kalpintelligence.com)).
+
+*Disclaimer: Blastup is an independent open-source software project developed by Kalp Intelligence. It is not affiliated with, endorsed, or sponsored by WhatsApp or Meta Platforms, Inc.*

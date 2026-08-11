@@ -1,8 +1,8 @@
 {
-  "name": "wa-client",
+  "name": "blastup-client",
   "version": "1.0.0",
-  "description": "WhatsApp Automation Platform - Dashboard",
-  "author": "kalp intelligence",
+  "description": "Blastup WhatsApp Automation Frontend — Kalp Intelligence",
+  "author": "Kalp Intelligence (https://kalpintelligence.com)",
   "license": "MIT",
   "scripts": {
     "dev": "next dev -p 3000",

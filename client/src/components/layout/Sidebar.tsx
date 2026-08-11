@@ -169,7 +169,7 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* Footer / Logout */}
+      {/* Footer / Logout & Non-editable Branding */}
       <div className="sidebar-footer">
         <button
           id="sidebar-logout"
@@ -180,6 +180,31 @@ export default function Sidebar() {
           <LogOut />
           <span>Logout</span>
         </button>
+
+        {/* NON-EDITABLE BRANDING - Developed by Kalp Intelligence */}
+        <div style={{
+          marginTop: 10,
+          padding: '8px 12px 4px 12px',
+          borderTop: '1px solid rgba(226, 232, 240, 0.6)',
+          textAlign: 'center',
+          fontSize: 11,
+          color: '#64748b',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 4,
+          flexWrap: 'wrap',
+        }}>
+          <span>Developed by</span>
+          <a
+            href="https://kalpintelligence.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: '#16a34a', fontWeight: 600, textDecoration: 'none' }}
+          >
+            Kalp Intelligence
+          </a>
+        </div>
       </div>
     </aside>
   );

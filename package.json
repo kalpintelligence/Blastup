@@ -1,10 +1,11 @@
 {
-  "name": "wa-platform",
+  "name": "blastup",
   "version": "1.0.0",
-  "description": "WhatsApp Automation Platform — monorepo",
-  "author": "kalp intelligence",
+  "description": "Blastup — Open-Source WhatsApp Automation Platform by Kalp Intelligence",
+  "author": "Kalp Intelligence (https://kalpintelligence.com)",
   "license": "MIT",
   "scripts": {
+    "setup": "bash setup.sh",
     "dev": "concurrently --names \"SERVER,CLIENT\" --prefix-colors \"green,blue\" \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
     "build": "npm run build --prefix server && npm run build --prefix client",
     "seed": "npm run seed --prefix server",

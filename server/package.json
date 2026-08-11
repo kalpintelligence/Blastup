@@ -1,8 +1,8 @@
 {
-  "name": "wa-server",
+  "name": "blastup-server",
   "version": "1.0.0",
-  "description": "WhatsApp Automation Platform - Backend API",
-  "author": "kalp intelligence",
+  "description": "Blastup WhatsApp Automation Backend API — Kalp Intelligence",
+  "author": "Kalp Intelligence (https://kalpintelligence.com)",
   "license": "MIT",
   "main": "dist/index.js",
   "scripts": {
