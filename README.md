@@ -13,16 +13,17 @@ Developed and maintained with ❤️ by **[Kalp Intelligence](https://kalpintell
 ## 📖 Table of Contents
 
 1. [Platform Overview](#-platform-overview)
-2. [Key Features](#-key-features)
-3. [Quick Start (One-Command Setup Wizard)](#-quick-start-one-command-setup-wizard)
-4. [Manual Installation Guide](#-manual-installation-guide)
-5. [Environment Variables Matrix](#-environment-variables-matrix)
-6. [Architecture & Tech Stack](#-architecture--tech-stack)
-7. [Docker Deployment](#-docker-deployment)
-8. [API Documentation & Examples](#-api-documentation--examples)
-9. [Security Implementation](#-security-implementation)
-10. [Troubleshooting & FAQ](#-troubleshooting--faq)
-11. [License & Attribution](#-license--attribution)
+2. [Platform Screenshots & Demo](#-platform-screenshots--demo)
+3. [Key Features](#-key-features)
+4. [Quick Start (One-Command Setup Wizard)](#-quick-start-one-command-setup-wizard)
+5. [Manual Installation Guide](#-manual-installation-guide)
+6. [Environment Variables Matrix](#-environment-variables-matrix)
+7. [Architecture & Tech Stack](#-architecture--tech-stack)
+8. [Docker Deployment](#-docker-deployment)
+9. [API Documentation & Examples](#-api-documentation--examples)
+10. [Security Implementation](#-security-implementation)
+11. [Troubleshooting & FAQ](#-troubleshooting--faq)
+12. [License & Attribution](#-license--attribution)
 
 ---
 
@@ -31,6 +32,18 @@ Developed and maintained with ❤️ by **[Kalp Intelligence](https://kalpintell
 **Blastup** is an open-source WhatsApp communication and automation platform engineered by **[Kalp Intelligence](https://kalpintelligence.com)**.
 
 Unlike proprietary SaaS alternatives that charge per message or require Meta Cloud API fees, Blastup is completely self-hosted, keeping **your messages, contacts, and API credentials 100% private on your own infrastructure.** It connects directly to WhatsApp Web's socket protocol using `@whiskeysockets/baileys`.
+
+---
+
+## 📸 Platform Screenshots & Demo
+
+| **Dashboard Overview** | **Conversational AI Chatbot** |
+| :---: | :---: |
+| ![Dashboard Overview](screenshots/screenshot_1.png) | ![Conversational AI Chatbot](screenshots/screenshot_2.png) |
+
+| **Broadcast Campaigns** | **API Settings & Security** |
+| :---: | :---: |
+| ![Broadcast Campaigns](screenshots/screenshot_3.png) | ![API Settings & Security](screenshots/screenshot_4.png) |
 
 ---
 
