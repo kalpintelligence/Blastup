@@ -381,13 +381,20 @@ async function processIncomingMessage(instanceId: string, msg: proto.IWebMessage
     { upsert: true }
   );
 
-  if (isFromMe) {
+  const myJid = sock?.user?.id ? normalizeJid(sock.user.id) : '';
+  const isSelfChat = isFromMe && (
+    chatId === myJid ||
+    chatId.split('@')[0] === myJid.split('@')[0] ||
+    (sock?.user?.id && chatId.includes(sock.user.id.split(':')[0]))
+  );
+
+  if (isFromMe && !isSelfChat) {
     await WhatsAppInstance.findOneAndUpdate({ instanceId }, { $inc: { messagesSent: 1, messagesToday: 1 } });
   } else {
     await WhatsAppInstance.findOneAndUpdate({ instanceId }, { $inc: { messagesReceived: 1, messagesToday: 1 } });
     waEvents.emit(`message:${instanceId}`, { chatId, msgId, type: messageType });
 
-    // Trigger Chatbot Auto-Responder if enabled
+    // Trigger Chatbot Auto-Responder if enabled (for customer incoming messages and self-test messages)
     handleChatbotAutoResponse(instanceId, chatId, content.text || content.caption || '', sock).catch((e) =>
       logger.error(`[${instanceId}] Chatbot auto-response error`, { e })
     );

@@ -7,7 +7,7 @@ import { jidNormalizedUser } from '@whiskeysockets/baileys';
 export function normalizeJid(jidOrPhone: string): string {
   if (!jidOrPhone) return '';
 
-  if (jidOrPhone.endsWith('@g.us') || jidOrPhone.endsWith('@broadcast')) {
+  if (jidOrPhone.endsWith('@g.us') || jidOrPhone.endsWith('@broadcast') || jidOrPhone.endsWith('@lid')) {
     return jidOrPhone;
   }
 
