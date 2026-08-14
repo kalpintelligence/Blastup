@@ -397,47 +397,182 @@ async function processIncomingMessage(instanceId: string, msg: proto.IWebMessage
 async function handleChatbotAutoResponse(instanceId: string, toJid: string, incomingText: string, sock: WASocket) {
   try {
     const { Chatbot } = await import('../models/Chatbot');
-    const chatbot = await Chatbot.findOne({ instanceId, enabled: true }).lean();
-    if (!chatbot || !incomingText) return;
+    const { ChatbotKnowledge } = await import('../models/ChatbotKnowledge');
+    const knowledgeEngine = await import('./knowledgeEngine');
+
+    // Find active chatbot: match instanceId, 'default', or any enabled chatbot configuration
+    const chatbot = await Chatbot.findOne({
+      $or: [{ instanceId }, { instanceId: 'default' }, { enabled: true }],
+      enabled: true,
+    }).sort({ updatedAt: -1 }).lean();
+
+    if (!chatbot || !incomingText) {
+      logger.info(`[${instanceId}] Chatbot not enabled or no incoming text to auto-respond.`);
+      return;
+    }
 
     const lowerText = incomingText.toLowerCase().trim();
-    let reply: string | null = null;
+    let replyText: string | null = null;
+    let replyImageUrl: string | undefined = undefined;
 
-    for (const rule of chatbot.rules) {
-      const kw = rule.keyword.toLowerCase().trim();
-      if (!kw) continue;
-      let matched = false;
-      if (rule.matchType === 'exact' && lowerText === kw) matched = true;
-      else if (rule.matchType === 'startsWith' && lowerText.startsWith(kw)) matched = true;
-      else if (rule.matchType === 'contains' && lowerText.includes(kw)) matched = true;
+    // ── 1. Evaluate Visual No-Code Chatflow Nodes ──────────────────────────
+    if (chatbot.flows && Array.isArray(chatbot.flows) && chatbot.flows.length > 0) {
+      const flows = chatbot.flows as any[];
+      const startNode = flows.find(n => n.type === 'flowStart');
+      const startTriggers = (startNode?.triggers || ['hi', 'hello', 'help', 'menu', 'studio', 'urban', 'start', 'hey'])
+        .map((t: string) => t.toLowerCase().trim());
 
-      if (matched) {
-        reply = rule.response;
-        break;
+      // Check if matches start trigger
+      const isStartTrigger = startTriggers.some((trg: string) =>
+        lowerText === trg || lowerText.startsWith(trg) || lowerText.includes(trg)
+      );
+
+      if (isStartTrigger) {
+        // Find first connected node after start (e.g. mediaButtons or message)
+        const welcomeNode = flows.find(n => n.type === 'mediaButtons') || flows.find(n => n.id !== 'node-start') || startNode;
+        if (welcomeNode) {
+          replyText = welcomeNode.content || welcomeNode.title;
+          replyImageUrl = welcomeNode.imageUrl;
+
+          if (welcomeNode.buttons && welcomeNode.buttons.length > 0) {
+            const buttonList = welcomeNode.buttons
+              .map((b: any, idx: number) => `${idx + 1}️⃣ *${b.label}*`)
+              .join('\n');
+            replyText += `\n\n${buttonList}\n\n_Reply with the option name or number to proceed._`;
+          }
+        }
+      } else {
+        // Check if user replied with a button label or button number
+        for (const node of flows) {
+          if (!node.buttons || !Array.isArray(node.buttons)) continue;
+
+          for (let i = 0; i < node.buttons.length; i++) {
+            const btn = node.buttons[i];
+            const btnLabelLower = (btn.label || '').toLowerCase().trim();
+            const btnIndexStr = String(i + 1);
+
+            if (
+              lowerText === btnLabelLower ||
+              lowerText.includes(btnLabelLower) ||
+              lowerText === btnIndexStr ||
+              lowerText === `option ${btnIndexStr}` ||
+              lowerText === `${btnIndexStr}.`
+            ) {
+              const targetNode = flows.find(n => n.id === (btn.targetNodeId || btn.nextNodeId));
+              if (targetNode) {
+                replyText = targetNode.content || targetNode.title;
+                replyImageUrl = targetNode.imageUrl;
+
+                if (targetNode.buttons && targetNode.buttons.length > 0) {
+                  const subBtnList = targetNode.buttons
+                    .map((b: any, idx: number) => `${idx + 1}️⃣ *${b.label}*`)
+                    .join('\n');
+                  replyText += `\n\n${subBtnList}\n\n_Reply with the option name or number._`;
+                }
+                break;
+              }
+            }
+          }
+          if (replyText) break;
+        }
+
+        // Check if user message matches any node specific triggers
+        if (!replyText) {
+          for (const node of flows) {
+            if (node.triggers && Array.isArray(node.triggers)) {
+              const matchedTrg = node.triggers.some((t: string) => lowerText.includes(t.toLowerCase().trim()));
+              if (matchedTrg) {
+                replyText = node.content;
+                replyImageUrl = node.imageUrl;
+                if (node.buttons && node.buttons.length > 0) {
+                  const bList = node.buttons.map((b: any, idx: number) => `${idx + 1}️⃣ *${b.label}*`).join('\n');
+                  replyText += `\n\n${bList}`;
+                }
+                break;
+              }
+            }
+          }
+        }
       }
     }
 
-    if (!reply && chatbot.fallbackMessage) {
-      reply = chatbot.fallbackMessage;
+    // ── 2. Evaluate Rule-based Auto-responder ──────────────────────────────
+    if (!replyText && chatbot.rules && Array.isArray(chatbot.rules) && chatbot.rules.length > 0) {
+      for (const rule of chatbot.rules) {
+        const kw = (rule.keyword || '').toLowerCase().trim();
+        if (!kw) continue;
+        let matched = false;
+        if (rule.matchType === 'exact' && lowerText === kw) matched = true;
+        else if (rule.matchType === 'startsWith' && lowerText.startsWith(kw)) matched = true;
+        else if (rule.matchType === 'contains' && lowerText.includes(kw)) matched = true;
+
+        if (matched) {
+          replyText = rule.response;
+          break;
+        }
+      }
     }
 
-    if (reply) {
+    // ── 3. Evaluate Company Knowledge Engine ───────────────────────────────
+    if (!replyText) {
+      try {
+        const knowledgeItems = await ChatbotKnowledge.find({
+          status: 'active',
+        }).lean();
+
+        if (knowledgeItems && knowledgeItems.length > 0) {
+          const knowledgeResult = await knowledgeEngine.query(
+            incomingText,
+            knowledgeItems as any,
+            toJid,
+            chatbot.fallbackMessage
+          );
+
+          if (knowledgeResult && knowledgeResult.confidence >= 0.35) {
+            replyText = knowledgeResult.reply;
+          }
+        }
+      } catch (kErr) {
+        logger.error(`[${instanceId}] Knowledge base query error:`, { kErr });
+      }
+    }
+
+    // ── 4. Fallback Message ────────────────────────────────────────────────
+    if (!replyText) {
+      replyText = chatbot.fallbackMessage || chatbot.welcomeMessage ||
+        "Hello! 👋 Thanks for messaging. Type *Help* or *Menu* to view our options, or leave your query here for our team.";
+    }
+
+    // ── 5. Send WhatsApp Message ───────────────────────────────────────────
+    if (replyText) {
       const normalizedTo = normalizeJid(toJid);
       let res: any;
+
       try {
-        res = await sock.sendMessage(normalizedTo, { text: reply });
-      } catch (err: any) {
-        if (err instanceof SafeModeError) {
-          // Safe Mode blocked the chatbot reply — log and skip silently
-          // (e.g. outside sending window or daily cap). Do not crash.
+        if (replyImageUrl && replyImageUrl.startsWith('http')) {
+          res = await sock.sendMessage(normalizedTo, {
+            image: { url: replyImageUrl },
+            caption: replyText,
+          });
+        } else {
+          res = await sock.sendMessage(normalizedTo, { text: replyText });
+        }
+      } catch (sendErr: any) {
+        if (sendErr instanceof SafeModeError) {
           logger.warn(`[${instanceId}] Chatbot reply blocked by Safe Mode`, {
-            code: err.code,
-            detail: err.detail,
+            code: sendErr.code,
+            detail: sendErr.detail,
           });
           return;
         }
-        throw err;
+        // Fallback to plain text if image send failed
+        if (replyImageUrl) {
+          res = await sock.sendMessage(normalizedTo, { text: replyText });
+        } else {
+          throw sendErr;
+        }
       }
+
       await Message.create({
         msgId: res?.key?.id || 'bot_' + Date.now(),
         chatId: normalizedTo,
@@ -445,25 +580,29 @@ async function handleChatbotAutoResponse(instanceId: string, toJid: string, inco
         from: sock?.user?.id || 'chatbot',
         to: normalizedTo,
         fromMe: true,
-        type: 'text',
-        text: reply,
+        type: replyImageUrl ? 'image' : 'text',
+        text: replyText,
+        caption: replyImageUrl ? replyText : undefined,
         status: 'sent',
         timestamp: new Date(),
       });
+
       await Chat.findOneAndUpdate(
         { chatId: normalizedTo, instanceId },
         {
           $set: {
             lastMessage: {
-              content: reply,
+              content: replyText,
               timestamp: new Date(),
               fromMe: true,
-              type: 'text',
+              type: replyImageUrl ? 'image' : 'text',
             },
           },
         },
         { upsert: true }
       );
+
+      logger.info(`[${instanceId}] Chatbot auto-response successfully sent to ${normalizedTo}`);
     }
   } catch (err) {
     logger.error(`[${instanceId}] Error in chatbot auto response`, { err });
