@@ -7,8 +7,17 @@ const router = Router();
 router.use(authenticate);
 
 /**
- * GET /api/analytics/messages/weekly
- * Returns per-day sent + received message counts for the last 7 days (today included).
+ * @swagger
+ * /api/analytics/messages/weekly:
+ *   get:
+ *     summary: Get weekly sent and received message analytics
+ *     tags: [Analytics]
+ *     security:
+ *       - cookieAuth: []
+ *       - apiKeyAuth: []
+ *     responses:
+ *       200:
+ *         description: 7-day daily message traffic distribution
  */
 router.get('/messages/weekly', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {

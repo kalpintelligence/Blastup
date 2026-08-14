@@ -37,6 +37,17 @@ const endpoints = [
   { method: 'POST', path: '/api/send/video', description: 'Send video (multipart/form-data)', auth: true },
   { method: 'POST', path: '/api/send/audio', description: 'Send audio (multipart/form-data)', auth: true },
   { method: 'POST', path: '/api/send/document', description: 'Send document (multipart/form-data)', auth: true },
+  { method: 'GET', path: '/api/chatbot', description: 'Get active Chatbot config, No-Code visual flows & reply mode', auth: true },
+  { method: 'PUT', path: '/api/chatbot', description: 'Update Chatbot config, No-Code visual flow nodes & reply mode', auth: true },
+  { method: 'POST', path: '/api/chatbot/message', description: 'Public web widget incoming message endpoint', auth: false },
+  { method: 'GET', path: '/api/chatbot/status/:chatbotId', description: 'Get public chatbot online status', auth: false },
+  { method: 'GET', path: '/api/chatbot/leads', description: 'List captured customer leads from Chatbot', auth: true },
+  { method: 'POST', path: '/api/chatbot/leads/:id/reply', description: 'Send direct WhatsApp reply to captured lead', auth: true },
+  { method: 'DELETE', path: '/api/chatbot/leads/:id', description: 'Delete captured customer lead', auth: true },
+  { method: 'GET', path: '/api/chatbot/knowledge', description: 'List company knowledge base entries for AI', auth: true },
+  { method: 'POST', path: '/api/chatbot/knowledge', description: 'Create new company knowledge entry', auth: true },
+  { method: 'POST', path: '/api/chatbot/knowledge/test', description: 'Test AI knowledge query matching & confidence', auth: true },
+  { method: 'GET', path: '/api/analytics/messages/weekly', description: 'Get 7-day daily sent and received message traffic', auth: true },
   { method: 'GET', path: '/api/logs', description: 'Get audit logs (paginated)', auth: true },
   { method: 'GET', path: '/api/health', description: 'Health check (uptime, memory)', auth: false },
 ];
@@ -52,14 +63,14 @@ const methodColors: Record<string, string> = {
 export default function DocsPage() {
   return (
     <>
-      <Header title="API Documentation" subtitle="Complete REST API reference" />
+      <Header title="API Documentation" subtitle="Complete REST API reference & No-Code Chatbot Flow Schema" />
       <div className="page-content">
         {/* Swagger Link */}
         <div className="card" style={{ marginBottom: 24 }}>
           <div className="flex items-center justify-between">
             <div>
-              <div className="font-semibold text-sm" style={{ marginBottom: 4 }}>Interactive API Explorer</div>
-              <p className="text-xs text-secondary">Full Swagger/OpenAPI 3.0 documentation with request/response examples and live testing.</p>
+              <div className="font-semibold text-sm" style={{ marginBottom: 4 }}>Interactive Swagger 3.0 Explorer</div>
+              <p className="text-xs text-secondary">Full Swagger/OpenAPI 3.0 interactive documentation with live testing on all endpoints including No-Code Chatbot.</p>
             </div>
             <a
               id="docs-swagger-link"
@@ -74,13 +85,52 @@ export default function DocsPage() {
           </div>
         </div>
 
+        {/* No-Code Chatbot Flow JSON Guide */}
+        <div className="card" style={{ marginBottom: 24, borderLeft: '3px solid #16a34a' }}>
+          <div className="card-header">
+            <span className="card-title">No-Code Chatbot Flow Schema</span>
+            <span className="badge badge-success">Visual Flow API</span>
+          </div>
+          <p className="text-sm text-secondary" style={{ marginBottom: 12 }}>
+            Deploy multi-step conversational journeys via <code>PUT /api/chatbot</code> by passing the <code>flows</code> array with keyword triggers, action buttons, and branching targets.
+          </p>
+          <pre style={{ fontSize: 12 }}>{`PUT /api/chatbot
+Content-Type: application/json
+
+{
+  "enabled": true,
+  "replySource": "nocode", // "nocode" | "standard" | "off"
+  "botName": "Urban Studioz Bot",
+  "flows": [
+    {
+      "id": "node-start",
+      "type": "flowStart",
+      "title": "Flow Start",
+      "triggers": ["Hi", "Hello", "Menu", "Help", "Shop"]
+    },
+    {
+      "id": "node-media",
+      "type": "mediaButtons",
+      "title": "Welcome Menu",
+      "imageUrl": "https://example.com/banner.jpg",
+      "content": "Welcome to our store 👋 Choose an option below:",
+      "buttons": [
+        { "id": "b1", "label": "🛍️ Shop Collections", "targetNodeId": "node-catalog" },
+        { "id": "b2", "label": "📦 Track Order", "targetNodeId": "node-track" },
+        { "id": "b3", "label": "💬 Live Agent", "targetNodeId": "node-agent" }
+      ]
+    }
+  ]
+}`}</pre>
+        </div>
+
         {/* Authentication Info */}
         <div className="card" style={{ marginBottom: 24, borderLeft: '3px solid var(--color-accent)' }}>
           <div className="card-header">
             <span className="card-title">Authentication</span>
           </div>
           <p className="text-sm text-secondary" style={{ marginBottom: 12 }}>
-            All protected routes require an authenticated session. Login via <code>/api/auth/login</code> to receive an HttpOnly session cookie that is automatically sent with subsequent requests.
+            All protected routes require an authenticated session. Login via <code>/api/auth/login</code> to receive an HttpOnly session cookie, or pass your API key as <code>x-api-key</code> header.
           </p>
           <pre style={{ fontSize: 12 }}>{`POST /api/auth/login
 Content-Type: application/json
@@ -90,7 +140,7 @@ Content-Type: application/json
   "password": "your-password"
 }
 
-// Response sets cookie: wa_token (HttpOnly, Secure)`}</pre>
+// Or pass Header: x-api-key: your_api_key_here`}</pre>
         </div>
 
         {/* Endpoint Table */}
