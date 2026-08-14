@@ -205,6 +205,7 @@ export default function UrbanStudiozChatbotPage() {
   const [config, setConfig] = useState<any>(null);
   const [activePreset, setActivePreset] = useState<string>('ecommerce');
   const [currentFlows, setCurrentFlows] = useState<FlowNode[]>(PRESETS.ecommerce.flows);
+  const [replySource, setReplySource] = useState<'nocode' | 'standard' | 'off'>('nocode');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -219,6 +220,7 @@ export default function UrbanStudiozChatbotPage() {
       const res = await chatbotApi.get();
       if (res.data) {
         setConfig(res.data);
+        setReplySource(res.data.replySource || (res.data.flows?.length > 0 ? 'nocode' : 'standard'));
         if (res.data.flows && res.data.flows.length > 0) {
           setCurrentFlows(res.data.flows);
         }
@@ -239,12 +241,36 @@ export default function UrbanStudiozChatbotPage() {
     setTimeout(() => setMessage(null), 3000);
   };
 
+  const handleUpdateReplySource = async (newSource: 'nocode' | 'standard' | 'off') => {
+    setReplySource(newSource);
+    try {
+      await chatbotApi.update({
+        enabled: newSource !== 'off',
+        replySource: newSource,
+        ...config,
+        flows: currentFlows,
+      });
+      setMessage({
+        type: 'success',
+        text: newSource === 'nocode'
+          ? '⚡ Switched to No-Code Visual Chatflow Engine!'
+          : newSource === 'standard'
+          ? '🤖 Switched to Standard Rules & AI Knowledge Base!'
+          : '⏸️ Automated WhatsApp replies turned off.',
+      });
+      setTimeout(() => setMessage(null), 3500);
+    } catch {
+      setMessage({ type: 'error', text: 'Failed to update reply engine.' });
+    }
+  };
+
   const handleSaveFlows = async (flows: FlowNode[]) => {
     setSaving(true);
     setMessage(null);
     try {
       const payload = {
-        enabled: config?.enabled ?? true,
+        enabled: true,
+        replySource: 'nocode',
         botName: config?.botName || 'Urban Studioz Bot',
         primaryColor: config?.primaryColor || '#16A34A',
         ...config,
@@ -255,6 +281,7 @@ export default function UrbanStudiozChatbotPage() {
       if (res.success) {
         setConfig(res.data);
         setCurrentFlows(flows);
+        setReplySource('nocode');
         setMessage({ type: 'success', text: 'No-Code Chatflow successfully deployed to WhatsApp!' });
         setTimeout(() => setMessage(null), 4000);
       }
@@ -273,6 +300,110 @@ export default function UrbanStudiozChatbotPage() {
       />
 
       <div className="page-content">
+        {/* ── WhatsApp Reply Engine Mode Selector ── */}
+        <div style={{
+          background: '#ffffff',
+          border: '1.5px solid #e2e8f0',
+          borderRadius: 16,
+          padding: '18px 24px',
+          marginBottom: 20,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 16,
+        }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>
+                WhatsApp Reply Engine
+              </span>
+              <span style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: replySource === 'nocode' ? '#16a34a' : replySource === 'standard' ? '#2563eb' : '#64748b',
+                background: replySource === 'nocode' ? '#f0fdf4' : replySource === 'standard' ? '#eff6ff' : '#f1f5f9',
+                padding: '2px 10px',
+                borderRadius: 9999,
+                border: '1px solid ' + (replySource === 'nocode' ? '#bbf7d0' : replySource === 'standard' ? '#bfdbfe' : '#e2e8f0'),
+              }}>
+                {replySource === 'nocode' ? '⚡ No-Code Flow Active' : replySource === 'standard' ? '🤖 Rules & AI Knowledge Active' : '⏸️ Auto-Replies Turned Off'}
+              </span>
+            </div>
+            <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+              Select whether incoming customer messages trigger No-Code flows or Standard Rules.
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={() => handleUpdateReplySource('nocode')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '8px 14px',
+                borderRadius: 8,
+                border: replySource === 'nocode' ? '1.5px solid #16a34a' : '1px solid #e2e8f0',
+                background: replySource === 'nocode' ? '#f0fdf4' : '#ffffff',
+                color: replySource === 'nocode' ? '#16a34a' : '#475569',
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <Layers size={14} />
+              <span>No-Code Flow Builder</span>
+              {replySource === 'nocode' && <span>✓</span>}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleUpdateReplySource('standard')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '8px 14px',
+                borderRadius: 8,
+                border: replySource === 'standard' ? '1.5px solid #2563eb' : '1px solid #e2e8f0',
+                background: replySource === 'standard' ? '#eff6ff' : '#ffffff',
+                color: replySource === 'standard' ? '#2563eb' : '#475569',
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <Zap size={14} />
+              <span>Standard Rules (/chatbot)</span>
+              {replySource === 'standard' && <span>✓</span>}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleUpdateReplySource('off')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '8px 14px',
+                borderRadius: 8,
+                border: replySource === 'off' ? '1.5px solid #0f172a' : '1px solid #e2e8f0',
+                background: replySource === 'off' ? '#0f172a' : '#ffffff',
+                color: replySource === 'off' ? '#ffffff' : '#475569',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <span>Turn Off</span>
+            </button>
+          </div>
+        </div>
         {/* Top Control & Preset Selector Bar */}
         <div style={{
           background: '#ffffff',

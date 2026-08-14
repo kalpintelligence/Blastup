@@ -411,84 +411,94 @@ async function handleChatbotAutoResponse(instanceId: string, toJid: string, inco
       return;
     }
 
+    // Determine active reply mode ('nocode' vs 'standard' vs 'off')
+    const replySource = chatbot.replySource || (chatbot.flows && chatbot.flows.length > 0 ? 'nocode' : 'standard');
+
+    if (replySource === 'off' || !chatbot.enabled) {
+      logger.info(`[${instanceId}] Chatbot auto-response is turned off.`);
+      return;
+    }
+
     const lowerText = incomingText.toLowerCase().trim();
     let replyText: string | null = null;
     let replyImageUrl: string | undefined = undefined;
 
-    // ── 1. Evaluate Visual No-Code Chatflow Nodes ──────────────────────────
-    if (chatbot.flows && Array.isArray(chatbot.flows) && chatbot.flows.length > 0) {
-      const flows = chatbot.flows as any[];
-      const startNode = flows.find(n => n.type === 'flowStart');
-      const startTriggers = (startNode?.triggers || ['hi', 'hello', 'help', 'menu', 'studio', 'urban', 'start', 'hey'])
-        .map((t: string) => t.toLowerCase().trim());
+    // ── MODE A: NO-CODE VISUAL FLOW ENGINE ─────────────────────────────────
+    if (replySource === 'nocode') {
+      if (chatbot.flows && Array.isArray(chatbot.flows) && chatbot.flows.length > 0) {
+        const flows = chatbot.flows as any[];
+        const startNode = flows.find(n => n.type === 'flowStart');
+        const startTriggers = (startNode?.triggers || ['hi', 'hello', 'help', 'menu', 'studio', 'urban', 'start', 'hey'])
+          .map((t: string) => t.toLowerCase().trim());
 
-      // Check if matches start trigger
-      const isStartTrigger = startTriggers.some((trg: string) =>
-        lowerText === trg || lowerText.startsWith(trg) || lowerText.includes(trg)
-      );
+        // Check if matches start trigger
+        const isStartTrigger = startTriggers.some((trg: string) =>
+          lowerText === trg || lowerText.startsWith(trg) || lowerText.includes(trg)
+        );
 
-      if (isStartTrigger) {
-        // Find first connected node after start (e.g. mediaButtons or message)
-        const welcomeNode = flows.find(n => n.type === 'mediaButtons') || flows.find(n => n.id !== 'node-start') || startNode;
-        if (welcomeNode) {
-          replyText = welcomeNode.content || welcomeNode.title;
-          replyImageUrl = welcomeNode.imageUrl;
+        if (isStartTrigger) {
+          // Find first connected node after start (e.g. mediaButtons or message)
+          const welcomeNode = flows.find(n => n.type === 'mediaButtons') || flows.find(n => n.id !== 'node-start') || startNode;
+          if (welcomeNode) {
+            replyText = welcomeNode.content || welcomeNode.title;
+            replyImageUrl = welcomeNode.imageUrl;
 
-          if (welcomeNode.buttons && welcomeNode.buttons.length > 0) {
-            const buttonList = welcomeNode.buttons
-              .map((b: any, idx: number) => `${idx + 1}️⃣ *${b.label}*`)
-              .join('\n');
-            replyText += `\n\n${buttonList}\n\n_Reply with the option name or number to proceed._`;
-          }
-        }
-      } else {
-        // Check if user replied with a button label or button number
-        for (const node of flows) {
-          if (!node.buttons || !Array.isArray(node.buttons)) continue;
-
-          for (let i = 0; i < node.buttons.length; i++) {
-            const btn = node.buttons[i];
-            const btnLabelLower = (btn.label || '').toLowerCase().trim();
-            const btnIndexStr = String(i + 1);
-
-            if (
-              lowerText === btnLabelLower ||
-              lowerText.includes(btnLabelLower) ||
-              lowerText === btnIndexStr ||
-              lowerText === `option ${btnIndexStr}` ||
-              lowerText === `${btnIndexStr}.`
-            ) {
-              const targetNode = flows.find(n => n.id === (btn.targetNodeId || btn.nextNodeId));
-              if (targetNode) {
-                replyText = targetNode.content || targetNode.title;
-                replyImageUrl = targetNode.imageUrl;
-
-                if (targetNode.buttons && targetNode.buttons.length > 0) {
-                  const subBtnList = targetNode.buttons
-                    .map((b: any, idx: number) => `${idx + 1}️⃣ *${b.label}*`)
-                    .join('\n');
-                  replyText += `\n\n${subBtnList}\n\n_Reply with the option name or number._`;
-                }
-                break;
-              }
+            if (welcomeNode.buttons && welcomeNode.buttons.length > 0) {
+              const buttonList = welcomeNode.buttons
+                .map((b: any, idx: number) => `${idx + 1}️⃣ *${b.label}*`)
+                .join('\n');
+              replyText += `\n\n${buttonList}\n\n_Reply with the option name or number to proceed._`;
             }
           }
-          if (replyText) break;
-        }
-
-        // Check if user message matches any node specific triggers
-        if (!replyText) {
+        } else {
+          // Check if user replied with a button label or button number
           for (const node of flows) {
-            if (node.triggers && Array.isArray(node.triggers)) {
-              const matchedTrg = node.triggers.some((t: string) => lowerText.includes(t.toLowerCase().trim()));
-              if (matchedTrg) {
-                replyText = node.content;
-                replyImageUrl = node.imageUrl;
-                if (node.buttons && node.buttons.length > 0) {
-                  const bList = node.buttons.map((b: any, idx: number) => `${idx + 1}️⃣ *${b.label}*`).join('\n');
-                  replyText += `\n\n${bList}`;
+            if (!node.buttons || !Array.isArray(node.buttons)) continue;
+
+            for (let i = 0; i < node.buttons.length; i++) {
+              const btn = node.buttons[i];
+              const btnLabelLower = (btn.label || '').toLowerCase().trim();
+              const btnIndexStr = String(i + 1);
+
+              if (
+                lowerText === btnLabelLower ||
+                lowerText.includes(btnLabelLower) ||
+                lowerText === btnIndexStr ||
+                lowerText === `option ${btnIndexStr}` ||
+                lowerText === `${btnIndexStr}.`
+              ) {
+                const targetNode = flows.find(n => n.id === (btn.targetNodeId || btn.nextNodeId));
+                if (targetNode) {
+                  replyText = targetNode.content || targetNode.title;
+                  replyImageUrl = targetNode.imageUrl;
+
+                  if (targetNode.buttons && targetNode.buttons.length > 0) {
+                    const subBtnList = targetNode.buttons
+                      .map((b: any, idx: number) => `${idx + 1}️⃣ *${b.label}*`)
+                      .join('\n');
+                    replyText += `\n\n${subBtnList}\n\n_Reply with the option name or number._`;
+                  }
+                  break;
                 }
-                break;
+              }
+            }
+            if (replyText) break;
+          }
+
+          // Check if user message matches any node specific triggers
+          if (!replyText) {
+            for (const node of flows) {
+              if (node.triggers && Array.isArray(node.triggers)) {
+                const matchedTrg = node.triggers.some((t: string) => lowerText.includes(t.toLowerCase().trim()));
+                if (matchedTrg) {
+                  replyText = node.content;
+                  replyImageUrl = node.imageUrl;
+                  if (node.buttons && node.buttons.length > 0) {
+                    const bList = node.buttons.map((b: any, idx: number) => `${idx + 1}️⃣ *${b.label}*`).join('\n');
+                    replyText += `\n\n${bList}`;
+                  }
+                  break;
+                }
               }
             }
           }
@@ -496,51 +506,54 @@ async function handleChatbotAutoResponse(instanceId: string, toJid: string, inco
       }
     }
 
-    // ── 2. Evaluate Rule-based Auto-responder ──────────────────────────────
-    if (!replyText && chatbot.rules && Array.isArray(chatbot.rules) && chatbot.rules.length > 0) {
-      for (const rule of chatbot.rules) {
-        const kw = (rule.keyword || '').toLowerCase().trim();
-        if (!kw) continue;
-        let matched = false;
-        if (rule.matchType === 'exact' && lowerText === kw) matched = true;
-        else if (rule.matchType === 'startsWith' && lowerText.startsWith(kw)) matched = true;
-        else if (rule.matchType === 'contains' && lowerText.includes(kw)) matched = true;
+    // ── MODE B: STANDARD RULES & AI KNOWLEDGE ENGINE ───────────────────────
+    if (replySource === 'standard') {
+      // 1. Evaluate Rule-based Auto-responder
+      if (chatbot.rules && Array.isArray(chatbot.rules) && chatbot.rules.length > 0) {
+        for (const rule of chatbot.rules) {
+          const kw = (rule.keyword || '').toLowerCase().trim();
+          if (!kw) continue;
+          let matched = false;
+          if (rule.matchType === 'exact' && lowerText === kw) matched = true;
+          else if (rule.matchType === 'startsWith' && lowerText.startsWith(kw)) matched = true;
+          else if (rule.matchType === 'contains' && lowerText.includes(kw)) matched = true;
 
-        if (matched) {
-          replyText = rule.response;
-          break;
-        }
-      }
-    }
-
-    // ── 3. Evaluate Company Knowledge Engine ───────────────────────────────
-    if (!replyText) {
-      try {
-        const knowledgeItems = await ChatbotKnowledge.find({
-          status: 'active',
-        }).lean();
-
-        if (knowledgeItems && knowledgeItems.length > 0) {
-          const knowledgeResult = await knowledgeEngine.query(
-            incomingText,
-            knowledgeItems as any,
-            toJid,
-            chatbot.fallbackMessage
-          );
-
-          if (knowledgeResult && knowledgeResult.confidence >= 0.35) {
-            replyText = knowledgeResult.reply;
+          if (matched) {
+            replyText = rule.response;
+            break;
           }
         }
-      } catch (kErr) {
-        logger.error(`[${instanceId}] Knowledge base query error:`, { kErr });
       }
-    }
 
-    // ── 4. Fallback Message ────────────────────────────────────────────────
-    if (!replyText) {
-      replyText = chatbot.fallbackMessage || chatbot.welcomeMessage ||
-        "Hello! 👋 Thanks for messaging. Type *Help* or *Menu* to view our options, or leave your query here for our team.";
+      // 2. Evaluate Company Knowledge Engine
+      if (!replyText) {
+        try {
+          const knowledgeItems = await ChatbotKnowledge.find({
+            status: 'active',
+          }).lean();
+
+          if (knowledgeItems && knowledgeItems.length > 0) {
+            const knowledgeResult = await knowledgeEngine.query(
+              incomingText,
+              knowledgeItems as any,
+              toJid,
+              chatbot.fallbackMessage
+            );
+
+            if (knowledgeResult && knowledgeResult.confidence >= 0.35) {
+              replyText = knowledgeResult.reply;
+            }
+          }
+        } catch (kErr) {
+          logger.error(`[${instanceId}] Knowledge base query error:`, { kErr });
+        }
+      }
+
+      // 3. Standard Fallback Message
+      if (!replyText) {
+        replyText = chatbot.fallbackMessage || chatbot.welcomeMessage ||
+          "Hello! 👋 Thanks for messaging. Ask a question or leave your details and our team will connect with you right away.";
+      }
     }
 
     // ── 5. Send WhatsApp Message ───────────────────────────────────────────
@@ -601,6 +614,8 @@ async function handleChatbotAutoResponse(instanceId: string, toJid: string, inco
         },
         { upsert: true }
       );
+
+      waEvents.emit(`message:${instanceId}`, { chatId: normalizedTo, msgId: res?.key?.id, type: replyImageUrl ? 'image' : 'text' });
 
       logger.info(`[${instanceId}] Chatbot auto-response successfully sent to ${normalizedTo}`);
     }

@@ -25,9 +25,12 @@ export default function SendPage() {
   const [footer, setFooter] = useState('Blastup Automation');
   const [file, setFile] = useState<File | null>(null);
 
-  // Button interactive state
-  const [buttonText, setButtonText] = useState('Tap Continue');
-  const [buttonUrl, setButtonUrl] = useState('https://example.com/continue');
+  // Dynamic Button interactive state
+  const [customButtons, setCustomButtons] = useState<Array<{ type: 'reply' | 'url' | 'call'; displayText: string; idOrUrl?: string }>>([
+    { type: 'reply', displayText: '🛍️ Shop Collections', idOrUrl: 'shop_now' },
+    { type: 'reply', displayText: '📦 Track Order', idOrUrl: 'track_order' },
+    { type: 'reply', displayText: '💬 Talk to Agent', idOrUrl: 'talk_agent' },
+  ]);
 
   // Slider interactive state
   const [sliderTitle, setSliderTitle] = useState('Exclusive Product Catalog');
@@ -38,6 +41,21 @@ export default function SendPage() {
 
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  const handleAddCustomButton = () => {
+    if (customButtons.length >= 3) return;
+    setCustomButtons([...customButtons, { type: 'reply', displayText: `Option ${customButtons.length + 1}`, idOrUrl: `btn_${Date.now()}` }]);
+  };
+
+  const handleRemoveCustomButton = (idx: number) => {
+    setCustomButtons(customButtons.filter((_, i) => i !== idx));
+  };
+
+  const handleUpdateButton = (idx: number, field: string, value: string) => {
+    const updated = [...customButtons];
+    (updated[idx] as any)[field] = value;
+    setCustomButtons(updated);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,11 +68,12 @@ export default function SendPage() {
       } else if (type === 'button') {
         await sendApi.button(
           to.trim(),
-          text.trim() || 'Tap Continue below to access your customized link:',
-          [
-            { type: 'url', displayText: buttonText.trim(), idOrUrl: buttonUrl.trim() },
-            { type: 'reply', displayText: 'More Options', idOrUrl: 'opt_more' },
-          ],
+          text.trim() || 'Welcome! 👋 Select an option below to proceed:',
+          customButtons.map(b => ({
+            type: b.type,
+            displayText: b.displayText.trim() || 'Option',
+            idOrUrl: b.idOrUrl?.trim() || `btn_${Date.now()}`,
+          })),
           footer
         );
       } else if (type === 'slider') {
@@ -129,34 +148,99 @@ export default function SendPage() {
                 <span className="input-helper">International format without +. E.g. 919876543210</span>
               </div>
 
-              {/* Button customization */}
+              {/* Interactive Multi-Buttons Customization */}
               {type === 'button' && (
-                <div className="card" style={{ background: 'var(--color-bg-primary)', display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <div className="flex items-center gap-2 font-semibold text-sm">
-                    <MousePointerClick size={16} className="text-accent" />
-                    <span>WhatsApp Tap Continue Button Options</span>
+                <div className="card" style={{ background: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 font-semibold text-sm" style={{ color: '#0f172a' }}>
+                      <MousePointerClick size={16} className="text-accent" />
+                      <span>WhatsApp Interactive Action Buttons (Max 3)</span>
+                    </div>
+                    {customButtons.length < 3 && (
+                      <button
+                        type="button"
+                        onClick={handleAddCustomButton}
+                        className="btn btn-sm btn-secondary"
+                        style={{ fontSize: 11, padding: '4px 10px' }}
+                      >
+                        + Add Button
+                      </button>
+                    )}
                   </div>
-                  <div>
-                    <label className="input-label">Button Action Label</label>
-                    <input
-                      type="text"
-                      className="input"
-                      value={buttonText}
-                      onChange={(e) => setButtonText(e.target.value)}
-                      placeholder="e.g. Tap Continue"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="input-label">Destination URL</label>
-                    <input
-                      type="url"
-                      className="input"
-                      value={buttonUrl}
-                      onChange={(e) => setButtonUrl(e.target.value)}
-                      placeholder="https://..."
-                      required
-                    />
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {customButtons.map((btn, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          background: '#ffffff',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: 8,
+                          padding: '10px 12px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 8,
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b' }}>
+                            Button {idx + 1}
+                          </span>
+                          {customButtons.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveCustomButton(idx)}
+                              style={{ border: 'none', background: 'transparent', color: '#ef4444', fontSize: 11, cursor: 'pointer', fontWeight: 600 }}
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="input-label" style={{ fontSize: 11 }}>Button Label</label>
+                            <input
+                              type="text"
+                              className="input"
+                              value={btn.displayText}
+                              onChange={(e) => handleUpdateButton(idx, 'displayText', e.target.value)}
+                              placeholder="e.g. 🛍️ Shop Now"
+                              required
+                            />
+                          </div>
+
+                          <div>
+                            <label className="input-label" style={{ fontSize: 11 }}>Button Type</label>
+                            <select
+                              className="input"
+                              value={btn.type}
+                              onChange={(e) => handleUpdateButton(idx, 'type', e.target.value)}
+                            >
+                              <option value="reply">Quick Reply (Triggers Flow)</option>
+                              <option value="url">URL Link</option>
+                              <option value="call">Call Phone</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {btn.type !== 'reply' && (
+                          <div>
+                            <label className="input-label" style={{ fontSize: 11 }}>
+                              {btn.type === 'url' ? 'Destination URL (https://...)' : 'Phone Number (+91...)'}
+                            </label>
+                            <input
+                              type="text"
+                              className="input"
+                              value={btn.idOrUrl || ''}
+                              onChange={(e) => handleUpdateButton(idx, 'idOrUrl', e.target.value)}
+                              placeholder={btn.type === 'url' ? 'https://example.com' : '+919876543210'}
+                              required
+                            />
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}

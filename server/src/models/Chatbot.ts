@@ -20,6 +20,7 @@ export interface IChatbotFlowNode {
 export interface IChatbot extends Document {
   instanceId: string;
   enabled: boolean;
+  replySource: 'nocode' | 'standard' | 'off';
   // Messages
   welcomeMessage: string;
   fallbackMessage: string;
@@ -63,6 +64,11 @@ const chatbotSchema = new Schema<IChatbot>(
       index: true,
     },
     enabled: { type: Boolean, default: false },
+    replySource: {
+      type: String,
+      enum: ['nocode', 'standard', 'off'],
+      default: 'nocode',
+    },
     // Messages
     welcomeMessage: {
       type: String,

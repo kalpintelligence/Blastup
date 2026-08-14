@@ -228,6 +228,7 @@ export const chatbotApi = {
 
   update: (data: {
     enabled: boolean;
+    replySource?: 'nocode' | 'standard' | 'off';
     botName?: string;
     botIcon?: string;
     welcomeMessage?: string;

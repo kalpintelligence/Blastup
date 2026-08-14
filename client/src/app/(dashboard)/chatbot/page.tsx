@@ -67,6 +67,7 @@ const RULE_TEMPLATES = [
 export default function ChatbotPage() {
   // General settings
   const [enabled, setEnabled] = useState(false);
+  const [replySource, setReplySource] = useState<'nocode' | 'standard' | 'off'>('nocode');
   const [botName, setBotName] = useState('Blastup Bot');
   const [botIcon, setBotIcon] = useState('bot');
   const [welcomeMessage, setWelcomeMessage] = useState('Hello! Welcome. How can I help you today? 👋');
@@ -153,6 +154,7 @@ export default function ChatbotPage() {
       const d = res.data;
       if (d) {
         setEnabled(d.enabled || false);
+        setReplySource(d.replySource || (d.flows?.length > 0 ? 'nocode' : 'standard'));
         setBotName(d.botName || 'Blastup Bot');
         setBotIcon(d.botIcon || 'bot');
         setWelcomeMessage(d.welcomeMessage || 'Hello! Welcome. How can I help you today? 👋');
@@ -190,12 +192,35 @@ export default function ChatbotPage() {
 
   const now = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+  const handleUpdateReplySource = async (newSource: 'nocode' | 'standard' | 'off') => {
+    setReplySource(newSource);
+    setSaving(true);
+    try {
+      await chatbotApi.update({
+        enabled: newSource !== 'off',
+        replySource: newSource,
+        botName, botIcon, welcomeMessage, fallbackMessage, offlineMessage,
+        headerText, subHeaderText, buttonLabel,
+        primaryColor, secondaryColor, gradient, gradientAngle, position, theme,
+        rules, collectLeads, leadFields,
+        flows,
+      });
+      if (newSource !== 'off') setEnabled(true);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch {
+      alert('Failed to update reply mode.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleSave = async (updatedFlows?: FlowNode[] | any) => {
     setSaving(true);
     try {
       const flowsToSave = Array.isArray(updatedFlows) ? updatedFlows : flows;
       await chatbotApi.update({
-        enabled, botName, botIcon, welcomeMessage, fallbackMessage, offlineMessage,
+        enabled, replySource, botName, botIcon, welcomeMessage, fallbackMessage, offlineMessage,
         headerText, subHeaderText, buttonLabel,
         primaryColor, secondaryColor, gradient, gradientAngle, position, theme,
         rules, collectLeads, leadFields,
@@ -448,6 +473,111 @@ export default function ChatbotPage() {
     <div>
       <Header title="Chatbot" subtitle="Premium keyword-triggered auto-response engine for WhatsApp" />
       <div className="page-content" style={{ maxWidth: 1100 }}>
+
+        {/* ── WhatsApp Reply Engine Mode Selector ── */}
+        <div className="card" style={{
+          marginBottom: 20,
+          background: '#ffffff',
+          border: '1.5px solid #e2e8f0',
+          padding: '18px 24px',
+          borderRadius: 16,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 16,
+        }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>
+                WhatsApp Reply Engine
+              </span>
+              <span style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: replySource === 'nocode' ? '#16a34a' : replySource === 'standard' ? '#2563eb' : '#64748b',
+                background: replySource === 'nocode' ? '#f0fdf4' : replySource === 'standard' ? '#eff6ff' : '#f1f5f9',
+                padding: '2px 10px',
+                borderRadius: 9999,
+                border: '1px solid ' + (replySource === 'nocode' ? '#bbf7d0' : replySource === 'standard' ? '#bfdbfe' : '#e2e8f0'),
+              }}>
+                {replySource === 'nocode' ? '⚡ No-Code Flow Active' : replySource === 'standard' ? '🤖 Rules & AI Knowledge Active' : '⏸️ Auto-Replies Turned Off'}
+              </span>
+            </div>
+            <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+              Choose where incoming WhatsApp customer messages receive automated replies.
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={() => handleUpdateReplySource('nocode')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '8px 14px',
+                borderRadius: 8,
+                border: replySource === 'nocode' ? '1.5px solid #16a34a' : '1px solid #e2e8f0',
+                background: replySource === 'nocode' ? '#f0fdf4' : '#ffffff',
+                color: replySource === 'nocode' ? '#16a34a' : '#475569',
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <Layers size={14} />
+              <span>No-Code Flow Builder</span>
+              {replySource === 'nocode' && <span>✓</span>}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleUpdateReplySource('standard')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '8px 14px',
+                borderRadius: 8,
+                border: replySource === 'standard' ? '1.5px solid #2563eb' : '1px solid #e2e8f0',
+                background: replySource === 'standard' ? '#eff6ff' : '#ffffff',
+                color: replySource === 'standard' ? '#2563eb' : '#475569',
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <Zap size={14} />
+              <span>Standard Rules &amp; Knowledge</span>
+              {replySource === 'standard' && <span>✓</span>}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleUpdateReplySource('off')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '8px 14px',
+                borderRadius: 8,
+                border: replySource === 'off' ? '1.5px solid #0f172a' : '1px solid #e2e8f0',
+                background: replySource === 'off' ? '#0f172a' : '#ffffff',
+                color: replySource === 'off' ? '#ffffff' : '#475569',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <span>Turn Off</span>
+            </button>
+          </div>
+        </div>
 
         {/* ── Premium Setup Onboarding Wizard ── */}
         <div className="card" style={{

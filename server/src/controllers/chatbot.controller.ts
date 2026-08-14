@@ -16,6 +16,7 @@ export async function getChatbot(req: AuthRequest, res: Response, next: NextFunc
       chatbot = {
         instanceId,
         enabled: false,
+        replySource: 'nocode',
         botName: 'Blastup Bot',
         botIcon: 'bot',
         welcomeMessage: 'Hello! Welcome. How can I help you today? 👋',
@@ -49,7 +50,7 @@ export async function updateChatbot(req: AuthRequest, res: Response, next: NextF
   try {
     const instanceId = req.user?.id || 'default';
     const {
-      enabled, botName, botIcon, welcomeMessage, fallbackMessage, offlineMessage,
+      enabled, replySource, botName, botIcon, welcomeMessage, fallbackMessage, offlineMessage,
       headerText, subHeaderText, buttonLabel,
       primaryColor, secondaryColor, gradient, gradientAngle, position, theme,
       rules, collectLeads, leadFields, flows,
@@ -57,6 +58,7 @@ export async function updateChatbot(req: AuthRequest, res: Response, next: NextF
 
     const setPayload: any = {
       enabled: enabled !== undefined ? enabled : false,
+      replySource: replySource || 'nocode',
       botName: botName || 'Blastup Bot',
       botIcon: botIcon || 'bot',
       welcomeMessage: welcomeMessage || 'Hello! Welcome. How can I help you today? 👋',
