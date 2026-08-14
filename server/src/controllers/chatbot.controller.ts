@@ -33,6 +33,7 @@ export async function getChatbot(req: AuthRequest, res: Response, next: NextFunc
         rules: [],
         collectLeads: false,
         leadFields: ['name', 'email'],
+        flows: [],
         createdAt: new Date(),
         updatedAt: new Date(),
       } as any;
@@ -51,33 +52,37 @@ export async function updateChatbot(req: AuthRequest, res: Response, next: NextF
       enabled, botName, botIcon, welcomeMessage, fallbackMessage, offlineMessage,
       headerText, subHeaderText, buttonLabel,
       primaryColor, secondaryColor, gradient, gradientAngle, position, theme,
-      rules, collectLeads, leadFields,
+      rules, collectLeads, leadFields, flows,
     } = req.body;
+
+    const setPayload: any = {
+      enabled: enabled !== undefined ? enabled : false,
+      botName: botName || 'Blastup Bot',
+      botIcon: botIcon || 'bot',
+      welcomeMessage: welcomeMessage || 'Hello! Welcome. How can I help you today? 👋',
+      fallbackMessage: fallbackMessage || "Sorry, I didn't understand that.",
+      offlineMessage: offlineMessage || "We're currently offline.",
+      headerText: headerText || 'Chat with us',
+      subHeaderText: subHeaderText || 'We typically reply within minutes',
+      buttonLabel: buttonLabel || 'Chat',
+      primaryColor: primaryColor || '#25D366',
+      secondaryColor: secondaryColor || '#128C7E',
+      gradient: gradient !== undefined ? gradient : true,
+      gradientAngle: gradientAngle !== undefined ? Number(gradientAngle) : 135,
+      position: position || 'bottom-right',
+      theme: theme || 'glassmorphic',
+      rules: rules || [],
+      collectLeads: collectLeads !== undefined ? collectLeads : false,
+      leadFields: Array.isArray(leadFields) ? leadFields : ['name', 'email'],
+    };
+
+    if (flows !== undefined) {
+      setPayload.flows = flows;
+    }
 
     const chatbot = await Chatbot.findOneAndUpdate(
       { instanceId },
-      {
-        $set: {
-          enabled: enabled !== undefined ? enabled : false,
-          botName: botName || 'Blastup Bot',
-          botIcon: botIcon || 'bot',
-          welcomeMessage: welcomeMessage || 'Hello! Welcome. How can I help you today? 👋',
-          fallbackMessage: fallbackMessage || "Sorry, I didn't understand that.",
-          offlineMessage: offlineMessage || "We're currently offline.",
-          headerText: headerText || 'Chat with us',
-          subHeaderText: subHeaderText || 'We typically reply within minutes',
-          buttonLabel: buttonLabel || 'Chat',
-          primaryColor: primaryColor || '#25D366',
-          secondaryColor: secondaryColor || '#128C7E',
-          gradient: gradient !== undefined ? gradient : true,
-          gradientAngle: gradientAngle !== undefined ? Number(gradientAngle) : 135,
-          position: position || 'bottom-right',
-          theme: theme || 'glassmorphic',
-          rules: rules || [],
-          collectLeads: collectLeads !== undefined ? collectLeads : false,
-          leadFields: Array.isArray(leadFields) ? leadFields : ['name', 'email'],
-        },
-      },
+      { $set: setPayload },
       { upsert: true, new: true }
     );
 

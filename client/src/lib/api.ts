@@ -246,6 +246,7 @@ export const chatbotApi = {
     rules?: Array<{ keyword: string; response: string; matchType: 'exact' | 'contains' | 'startsWith' }>;
     collectLeads?: boolean;
     leadFields?: Array<'name' | 'email' | 'phone'>;
+    flows?: any[];
   }) => request<{ success: boolean; data: any }>('/api/chatbot', {
     method: 'PUT',
     body: JSON.stringify(data),
@@ -317,6 +318,18 @@ export const knowledgeApi = {
       method: 'POST',
       body: JSON.stringify({ message, sessionId }),
     }),
+};
+
+// ── Admin ─────────────────────────────────────────────────────────
+export const adminApi = {
+  getUsers: () =>
+    request<{ success: boolean; data: any[] }>('/api/admin/users'),
+
+  toggleUserStatus: (id: string) =>
+    request<{ success: boolean; data: any }>(`/api/admin/users/${id}/status`, { method: 'PATCH' }),
+
+  deleteUser: (id: string) =>
+    request<{ success: boolean }>(`/api/admin/users/${id}`, { method: 'DELETE' }),
 };
 
 

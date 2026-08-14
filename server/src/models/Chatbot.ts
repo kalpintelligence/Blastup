@@ -6,6 +6,17 @@ export interface IChatbotRule {
   matchType: 'exact' | 'contains' | 'startsWith';
 }
 
+export interface IChatbotFlowNode {
+  id: string;
+  type: 'flowStart' | 'message' | 'mediaButtons' | 'requestIntervention';
+  x: number;
+  y: number;
+  title: string;
+  content: string;
+  buttons: Array<{ id: string; label: string; nextNodeId?: string }>;
+  connections: string[];
+}
+
 export interface IChatbot extends Document {
   instanceId: string;
   enabled: boolean;
@@ -30,6 +41,8 @@ export interface IChatbot extends Document {
   // Lead Collection
   collectLeads: boolean;
   leadFields: Array<'name' | 'email' | 'phone'>;
+  // No-code Flow Builder
+  flows: IChatbotFlowNode[];
   // Timestamps
   createdAt: Date;
   updatedAt: Date;
@@ -91,6 +104,8 @@ const chatbotSchema = new Schema<IChatbot>(
       enum: ['name', 'email', 'phone'],
       default: ['name', 'email'],
     },
+    // No-code Flow Builder
+    flows: { type: Schema.Types.Mixed, default: [] },
   },
   {
     timestamps: true,

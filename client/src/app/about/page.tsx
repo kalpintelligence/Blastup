@@ -1,186 +1,187 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
-import { ExternalLink, ShieldCheck, Cpu, Zap, Code, Sparkles, ArrowLeft } from 'lucide-react';
+import Navbar from '@/components/landing/Navbar';
+import Footer from '@/components/landing/Footer';
+import { ArrowRight, ExternalLink, Github, Check } from 'lucide-react';
 
 export default function PublicAboutPage() {
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: 'Inter, sans-serif' }}>
-      
-      {/* HEADER */}
-      <header style={{
-        background: '#ffffff',
-        borderBottom: '1px solid #e2e8f0',
-        padding: '16px 32px',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        position: 'sticky', top: 0, zIndex: 50,
+    <div style={{
+      minHeight: '100vh',
+      background: '#FFFFFF',
+      fontFamily: "-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif",
+      color: '#0F172A',
+      WebkitFontSmoothing: 'antialiased',
+    }}>
+      <Navbar />
+
+      <main style={{
+        maxWidth: 780,
+        margin: '0 auto',
+        paddingTop: 120,
+        paddingBottom: 80,
+        paddingLeft: 24,
+        paddingRight: 24,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#64748b', textDecoration: 'none', fontSize: 14 }}>
-            <ArrowLeft size={16} /> Back to Home
-          </Link>
-          <div style={{ height: 20, width: 1, background: '#cbd5e1' }} />
-          <Image src="/logo.svg" alt="Blastup Logo" width={110} height={30} style={{ objectFit: 'contain' }} priority />
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <Link href="/login" style={{ color: '#0f172a', textDecoration: 'none', fontWeight: 600, fontSize: 14 }}>
-            Sign In
-          </Link>
-          <Link
-            href="/dashboard"
-            style={{
-              background: '#16a34a', color: '#ffffff', padding: '8px 18px', borderRadius: 8,
-              textDecoration: 'none', fontWeight: 600, fontSize: 14,
-            }}
-          >
-            Dashboard
-          </Link>
-        </div>
-      </header>
-
-      {/* CONTENT CONTAINER */}
-      <main style={{ padding: '48px 24px', maxWidth: 1100, margin: '0 auto' }}>
-
-        {/* HERO CARD */}
-        <div style={{
-          background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-          borderRadius: 24,
-          padding: '56px 48px',
-          color: '#ffffff',
-          marginBottom: 40,
-          position: 'relative',
-          overflow: 'hidden',
-          boxShadow: '0 25px 50px -12px rgba(15,23,42,0.25)',
-        }}>
+        {/* Header */}
+        <div style={{ marginBottom: 40 }}>
           <div style={{
-            position: 'absolute', top: '-40%', right: '-10%',
-            width: 450, height: 450,
-            background: 'radial-gradient(circle, rgba(22,163,74,0.25) 0%, transparent 70%)',
-            pointerEvents: 'none',
-          }} />
+            fontSize: 12,
+            fontWeight: 600,
+            color: '#16a34a',
+            marginBottom: 12,
+            letterSpacing: '0.02em',
+          }}>
+            ● ABOUT BLASTUP
+          </div>
+          <h1 style={{
+            fontSize: 'clamp(28px, 4vw, 40px)',
+            fontWeight: 700,
+            lineHeight: 1.2,
+            letterSpacing: '-0.03em',
+            color: '#0f172a',
+            marginBottom: 16,
+          }}>
+            Open infrastructure for WhatsApp messaging.
+          </h1>
+          <p style={{ fontSize: 16, color: '#475569', lineHeight: 1.6 }}>
+            Blastup is an open-source WhatsApp broadcast and chatbot platform developed by <strong style={{ color: '#0f172a' }}>Kalp Intelligence</strong>. It provides an unmetered, privacy-first alternative to closed, per-message cloud APIs.
+          </p>
+        </div>
 
-          <div style={{ position: 'relative', zIndex: 1, maxWidth: 850 }}>
-            <div style={{
-              display: 'inline-flex', alignItems: 'center', gap: 8,
-              padding: '6px 16px', borderRadius: 9999,
-              background: 'rgba(22,163,74,0.15)', border: '1px solid rgba(22,163,74,0.3)',
-              color: '#4ade80', fontSize: 13, fontWeight: 600, marginBottom: 24,
-            }}>
-              <Sparkles size={14} /> Developed by Kalp Intelligence
+        {/* Story Section */}
+        <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 32, marginBottom: 40 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 600, color: '#0f172a', marginBottom: 12 }}>
+            Why we built Blastup
+          </h2>
+          <p style={{ fontSize: 14, color: '#475569', lineHeight: 1.7, marginBottom: 16 }}>
+            Businesses wanting to communicate with their audience on WhatsApp are typically faced with high per-conversation fees, strict template delays, and proprietary platform lock-in.
+          </p>
+          <p style={{ fontSize: 14, color: '#475569', lineHeight: 1.7 }}>
+            We created Blastup under the MIT license to give developers and teams direct control over their WhatsApp communication: send unlimited broadcasts, build automated 24/7 chatflows, and self-host on their own servers with complete data ownership.
+          </p>
+        </div>
+
+        {/* 3 Core Pillars */}
+        <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 32, marginBottom: 40 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 600, color: '#0f172a', marginBottom: 20 }}>
+            What sets Blastup apart
+          </h2>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div style={{ border: '1px solid #e2e8f0', borderRadius: 10, padding: 20 }}>
+              <div style={{ fontSize: 15, fontWeight: 600, color: '#0f172a', marginBottom: 4 }}>
+                1. 100% Free &amp; Open Source
+              </div>
+              <p style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6 }}>
+                Released under the MIT License. Deploy via Docker Compose or Node.js on any server. No subscription fees, no user limits, and full code transparency.
+              </p>
             </div>
 
-            <h1 style={{ fontSize: 42, fontWeight: 800, marginBottom: 20, lineHeight: 1.2, color: '#ffffff' }}>
-              Blastup — Open-Source WhatsApp Automation Platform
-            </h1>
+            <div style={{ border: '1px solid #e2e8f0', borderRadius: 10, padding: 20 }}>
+              <div style={{ fontSize: 15, fontWeight: 600, color: '#0f172a', marginBottom: 4 }}>
+                2. Unlimited WhatsApp Campaigns
+              </div>
+              <p style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6 }}>
+                Send broadcasts to segmented contact groups with personalized merge tags, action buttons, and product sliders. Built-in SafeMode delay pacing keeps your numbers healthy.
+              </p>
+            </div>
 
-            <p style={{ fontSize: 17, color: '#94a3b8', lineHeight: 1.7, marginBottom: 32 }}>
-              Engineered by <strong style={{ color: '#ffffff' }}>Kalp Intelligence</strong>, Blastup is a modern, developer-friendly open-source platform designed to streamline multi-device WhatsApp messaging, AI chatbot auto-responses, bulk broadcasting, and custom API workflows.
-            </p>
+            <div style={{ border: '1px solid #e2e8f0', borderRadius: 10, padding: 20 }}>
+              <div style={{ fontSize: 15, fontWeight: 600, color: '#0f172a', marginBottom: 4 }}>
+                3. Visual No-Code Chatbot
+              </div>
+              <p style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6 }}>
+                Construct automated inquiry workflows and lead capture forms in a visual node editor. Test conversational journeys instantly in an interactive phone simulator.
+              </p>
+            </div>
+          </div>
+        </div>
 
+        {/* Tech Stack */}
+        <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 32, marginBottom: 40 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 600, color: '#0f172a', marginBottom: 12 }}>
+            Technology Stack
+          </h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+            <div style={{ background: '#f8fafc', padding: 14, borderRadius: 8, fontSize: 13, color: '#334155' }}>
+              <strong>Frontend:</strong> Next.js 14, React, TypeScript
+            </div>
+            <div style={{ background: '#f8fafc', padding: 14, borderRadius: 8, fontSize: 13, color: '#334155' }}>
+              <strong>Backend:</strong> Express.js, Node.js, TypeScript
+            </div>
+            <div style={{ background: '#f8fafc', padding: 14, borderRadius: 8, fontSize: 13, color: '#334155' }}>
+              <strong>Database:</strong> MongoDB &amp; Redis
+            </div>
+            <div style={{ background: '#f8fafc', padding: 14, borderRadius: 8, fontSize: 13, color: '#334155' }}>
+              <strong>WhatsApp Engine:</strong> Baileys Multi-Device Socket
+            </div>
+          </div>
+        </div>
+
+        {/* Developer Attribution Box */}
+        <div style={{
+          border: '1px solid #e2e8f0',
+          borderRadius: 10,
+          padding: 24,
+          background: '#f8fafc',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 16,
+        }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#0f172a' }}>Developed by Kalp Intelligence</div>
+            <div style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>Engineering open, reliable software infrastructure.</div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 10 }}>
             <a
               href="https://kalpintelligence.com"
               target="_blank"
               rel="noopener noreferrer"
               style={{
-                display: 'inline-flex', alignItems: 'center', gap: 10,
-                padding: '14px 28px', borderRadius: 12,
-                background: '#16a34a', color: '#ffffff',
-                fontWeight: 700, fontSize: 15, textDecoration: 'none',
-                boxShadow: '0 10px 20px -5px rgba(22,163,74,0.4)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                padding: '8px 14px',
+                borderRadius: 6,
+                background: '#ffffff',
+                border: '1px solid #cbd5e1',
+                color: '#0f172a',
+                fontSize: 13,
+                fontWeight: 500,
+                textDecoration: 'none',
               }}
             >
-              Visit Kalp Intelligence Website <ExternalLink size={18} />
+              Website <ExternalLink size={12} />
             </a>
-          </div>
-        </div>
-
-        {/* PILLARS */}
-        <h2 style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', marginBottom: 24 }}>
-          Core Capabilities & Technology Stack
-        </h2>
-
-        <div style={{
-          display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24, marginBottom: 48,
-        }}>
-          <div style={{
-            background: '#ffffff', borderRadius: 20, padding: 32,
-            border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.03)',
-          }}>
-            <div style={{
-              width: 52, height: 52, borderRadius: 14, background: '#f0fdf4',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#16a34a', marginBottom: 20,
-            }}>
-              <Zap size={26} />
-            </div>
-            <h3 style={{ fontSize: 19, fontWeight: 700, color: '#0f172a', marginBottom: 12 }}>
-              Multi-Device Socket Gateway
-            </h3>
-            <p style={{ fontSize: 14, color: '#64748b', lineHeight: 1.6 }}>
-              Direct WhatsApp Web protocol connection utilizing Baileys sockets. Connect effortlessly using QR code scanning without expensive API message quotas.
-            </p>
-          </div>
-
-          <div style={{
-            background: '#ffffff', borderRadius: 20, padding: 32,
-            border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.03)',
-          }}>
-            <div style={{
-              width: 52, height: 52, borderRadius: 14, background: '#eff6ff',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563eb', marginBottom: 20,
-            }}>
-              <Cpu size={26} />
-            </div>
-            <h3 style={{ fontSize: 19, fontWeight: 700, color: '#0f172a', marginBottom: 12 }}>
-              Conversational AI & Lead Capture
-            </h3>
-            <p style={{ fontSize: 14, color: '#64748b', lineHeight: 1.6 }}>
-              Intelligent keyword & intent scoring engine engineered by Kalp Intelligence to automatically address customer inquiries and qualify leads 24/7.
-            </p>
-          </div>
-
-          <div style={{
-            background: '#ffffff', borderRadius: 20, padding: 32,
-            border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.03)',
-          }}>
-            <div style={{
-              width: 52, height: 52, borderRadius: 14, background: '#fef3c7',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d97706', marginBottom: 20,
-            }}>
-              <ShieldCheck size={26} />
-            </div>
-            <h3 style={{ fontSize: 19, fontWeight: 700, color: '#0f172a', marginBottom: 12 }}>
-              SafeMode Antiban Protection
-            </h3>
-            <p style={{ fontSize: 14, color: '#64748b', lineHeight: 1.6 }}>
-              Advanced anti-ban engine featuring randomized delay intervals, message variation rotation, and account health monitoring.
-            </p>
-          </div>
-        </div>
-
-      </main>
-
-      {/* FOOTER */}
-      <footer style={{
-        background: '#ffffff', borderTop: '1px solid #e2e8f0', padding: '32px 24px',
-        textAlign: 'center', fontSize: 14, color: '#64748b',
-      }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
-          <div>© 2026 Blastup Platform. Released under MIT Open Source License.</div>
-          <div>
-            Developed by{' '}
             <a
-              href="https://kalpintelligence.com"
+              href="https://github.com/kalpintelligence/blastup"
               target="_blank"
               rel="noopener noreferrer"
-              style={{ color: '#16a34a', fontWeight: 700, textDecoration: 'none' }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                padding: '8px 14px',
+                borderRadius: 6,
+                background: '#0f172a',
+                color: '#ffffff',
+                fontSize: 13,
+                fontWeight: 500,
+                textDecoration: 'none',
+              }}
             >
-              Kalp Intelligence
+              <Github size={13} /> GitHub
             </a>
           </div>
         </div>
-      </footer>
+      </main>
+
+      <Footer />
     </div>
   );
 }

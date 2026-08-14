@@ -76,6 +76,9 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
       role: user.role,
     };
 
+    // Track last seen — non-blocking background update
+    User.updateOne({ _id: user._id }, { lastSeenAt: new Date() }).exec().catch(() => {});
+
     next();
   } catch (error) {
     next(error);

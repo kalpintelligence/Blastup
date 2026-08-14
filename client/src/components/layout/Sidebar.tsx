@@ -1,14 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Wifi, MessageSquare, Users,
-  Send, Megaphone, BookOpen, Key, LogOut, Minus, Plus, Folder, X
+  Send, Megaphone, BookOpen, Key, LogOut, Minus, Plus, Folder, X, Shield
 } from 'lucide-react';
-import { logout } from '@/lib/auth';
+import { logout, getUser } from '@/lib/auth';
 
 interface SidebarProps {
   mobileOpen?: boolean;
@@ -18,6 +18,15 @@ interface SidebarProps {
 export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const [chatbotOpen, setChatbotOpen] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    getUser().then(u => {
+      if (u?.role === 'admin') {
+        setIsAdmin(true);
+      }
+    });
+  }, []);
 
   const isChatbotActive = pathname.startsWith('/chatbot');
 
@@ -136,7 +145,20 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
                   </Link>
                 </div>
 
-                {/* Sub-item 2: Chatbot Leads */}
+                {/* Sub-item 2: No-Code Chatbot */}
+                <div className="tree-child-wrapper">
+                  <div className="tree-dot" />
+                  <Link
+                    href="/chatbot/no-code"
+                    className={`tree-child-item ${pathname === '/chatbot/no-code' || pathname === '/chatbot/urban-studioz' ? 'active' : ''}`}
+                    id="nav-no-code-chatbot"
+                  >
+                    <Folder size={16} />
+                    <span>No-Code Chatbot</span>
+                  </Link>
+                </div>
+
+                {/* Sub-item 3: Chatbot Leads */}
                 <div className="tree-child-wrapper">
                   <div className="tree-dot" />
                   <Link
@@ -181,6 +203,16 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
             <Key />
             <span>API Keys & Settings</span>
           </Link>
+          {isAdmin && (
+            <Link
+              href="/admin"
+              className={`sidebar-item ${pathname.startsWith('/admin') ? 'active' : ''}`}
+              id="nav-admin"
+            >
+              <Shield />
+              <span>Admin Accounts</span>
+            </Link>
+          )}
         </div>
       </div>
 

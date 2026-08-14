@@ -3,11 +3,13 @@
 import { useEffect, useState, useRef } from 'react';
 import Header from '@/components/layout/Header';
 import { chatbotApi, knowledgeApi } from '@/lib/api';
+import ChatflowBuilder, { FlowNode } from '@/components/chatbot/ChatflowBuilder';
 import {
   Bot, Plus, Trash2, Save, Copy, CheckCheck, ToggleLeft, ToggleRight,
   Zap, MessageSquare, Code2, Settings, Globe, Eye, Send, Palette,
   Shield, X, ChevronRight, Monitor, Sparkles, User, Check, BookOpen,
-  Search, Edit2, Brain, Tag, Star, AlertCircle, RefreshCw, ChevronDown
+  Search, Edit2, Brain, Tag, Star, AlertCircle, RefreshCw, ChevronDown,
+  Layers
 } from 'lucide-react';
 
 interface ChatbotRule {
@@ -17,12 +19,13 @@ interface ChatbotRule {
   matchType: 'exact' | 'contains' | 'startsWith';
 }
 
-type Tab = 'settings' | 'appearance' | 'rules' | 'preview' | 'embed' | 'knowledge';
+type Tab = 'settings' | 'appearance' | 'rules' | 'flow' | 'knowledge' | 'preview' | 'embed';
 
 const TABS: { key: Tab; label: string; icon: any }[] = [
   { key: 'settings', label: 'Bot Identity & Settings', icon: Settings },
   { key: 'appearance', label: 'Appearance & Themes', icon: Palette },
   { key: 'rules', label: 'Auto-Reply Rules', icon: Zap },
+  { key: 'flow', label: 'No-Code Chatflow Builder', icon: Layers },
   { key: 'knowledge', label: 'Company Knowledge', icon: BookOpen },
   { key: 'preview', label: 'Test Simulator', icon: Eye },
   { key: 'embed', label: 'Embed Widget', icon: Code2 },
@@ -88,6 +91,8 @@ export default function ChatbotPage() {
 
   // Rules
   const [rules, setRules] = useState<ChatbotRule[]>([]);
+  // Flow state
+  const [flows, setFlows] = useState<FlowNode[]>([]);
 
   // UI state
   const [loading, setLoading] = useState(true);
@@ -95,7 +100,6 @@ export default function ChatbotPage() {
   const [saved, setSaved] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('settings');
   const [copied, setCopied] = useState(false);
-  const [widgetCode, setWidgetCode] = useState('');
 
   // Floating Simulator state
   const [floatingOpen, setFloatingOpen] = useState(true);
@@ -142,19 +146,7 @@ export default function ChatbotPage() {
     ? `${window.location.protocol}//${window.location.hostname}:3001`
     : 'http://localhost:3001');
 
-  useEffect(() => {
-    fetch(`${backendUrl}/widget.js`)
-      .then((res) => {
-        if (!res.ok) throw new Error('Status: ' + res.status);
-        return res.text();
-      })
-      .then((code) => {
-        setWidgetCode(code);
-      })
-      .catch((err) => {
-        console.error('Failed to load widget code:', err);
-      });
-  }, [backendUrl]);
+  // Widget URL is backendUrl/widget.js
 
   useEffect(() => {
     chatbotApi.get().then((res) => {
@@ -179,6 +171,9 @@ export default function ChatbotPage() {
         setRules(d.rules || []);
         setCollectLeads(d.collectLeads || false);
         setLeadFields(d.leadFields || ['name', 'email']);
+        if (d.flows && Array.isArray(d.flows) && d.flows.length > 0) {
+          setFlows(d.flows);
+        }
       }
     }).catch(() => { }).finally(() => setLoading(false));
   }, []);
@@ -195,15 +190,18 @@ export default function ChatbotPage() {
 
   const now = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-  const handleSave = async () => {
+  const handleSave = async (updatedFlows?: FlowNode[] | any) => {
     setSaving(true);
     try {
+      const flowsToSave = Array.isArray(updatedFlows) ? updatedFlows : flows;
       await chatbotApi.update({
         enabled, botName, botIcon, welcomeMessage, fallbackMessage, offlineMessage,
         headerText, subHeaderText, buttonLabel,
         primaryColor, secondaryColor, gradient, gradientAngle, position, theme,
         rules, collectLeads, leadFields,
+        flows: flowsToSave,
       });
+      if (Array.isArray(updatedFlows)) setFlows(updatedFlows);
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } catch {
@@ -364,11 +362,9 @@ export default function ChatbotPage() {
   };
 
 
-  const sOpen = '\x3Cscript\x3E';
-  const sClose = '\x3C/script\x3E';
   const embedCode = [
-    '\x3C!-- Blastup WhatsApp Chatbot Widget --\x3E',
-    sOpen,
+    '<!-- Blastup WhatsApp Chatbot Widget -->',
+    '<' + 'script>',
     '  window.BlastupConfig = {',
     `    apiUrl: '${backendUrl}',`,
     `    position: '${position}',`,
@@ -384,11 +380,10 @@ export default function ChatbotPage() {
     `    collectLeads: ${collectLeads},`,
     `    leadFields: ${JSON.stringify(leadFields)},`,
     `    theme: '${theme}',`,
-    `    chatbotId: '${chatbotId}',`,
+    `    chatbotId: '${chatbotId}'`,
     '  };',
-    '',
-    widgetCode || '// Loading widget script...',
-    sClose,
+    '<' + '/script>',
+    '<' + `script src="${backendUrl}/widget.js" defer><` + '/script>',
   ].join('\n');
 
   const handleCopy = () => { navigator.clipboard.writeText(embedCode); setCopied(true); setTimeout(() => setCopied(false), 2000); };
@@ -573,7 +568,7 @@ export default function ChatbotPage() {
 
             <button
               className="btn btn-primary flex items-center gap-2"
-              onClick={handleSave}
+              onClick={() => handleSave()}
               disabled={saving}
               style={{ minWidth: 120 }}
             >
@@ -1190,6 +1185,19 @@ export default function ChatbotPage() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* ══════════════════════════════════════════ FLOW TAB ══ */}
+        {activeTab === 'flow' && (
+          <ChatflowBuilder
+            initialFlows={flows}
+            botName={botName}
+            primaryColor={primaryColor}
+            onSave={async (updatedFlows) => {
+              await handleSave(updatedFlows);
+            }}
+            saving={saving}
+          />
         )}
 
         {/* ══════════════════════════════════════════ PREVIEW TAB ══ */}

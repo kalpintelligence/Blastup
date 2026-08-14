@@ -10,6 +10,7 @@ export interface IUser extends Document {
   lockedUntil: Date | null;
   lastLoginAt: Date | null;
   lastLoginIp: string | null;
+  lastSeenAt: Date | null;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -54,6 +55,10 @@ const userSchema = new Schema<IUser>(
     },
     lastLoginIp: {
       type: String,
+      default: null,
+    },
+    lastSeenAt: {
+      type: Date,
       default: null,
     },
     isActive: {

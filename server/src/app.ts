@@ -20,6 +20,7 @@ import healthRoutes from './routes/health.routes';
 import apiKeyRoutes from './routes/apikey.routes';
 import campaignRoutes from './routes/campaign.routes';
 import chatbotRoutes from './routes/chatbot.routes';
+import adminRoutes from './routes/admin.routes';
 
 import { initCampaignScheduler } from './services/campaignScheduler';
 import { normalizeExistingDatabase } from './utils/jid';
@@ -219,6 +220,13 @@ export function createApp(): express.Application {
     '/api/chatbot',
     apiLimiter,
     chatbotRoutes
+  );
+
+  // ── Admin API ────────────────────────────────────────────────────
+  app.use(
+    '/api/admin',
+    apiLimiter,
+    adminRoutes
   );
 
   // ── Safe Mode API ────────────────────────────────────────────────
