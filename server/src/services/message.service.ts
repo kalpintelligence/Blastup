@@ -1,4 +1,4 @@
-import { getSocket } from './whatsapp.service';
+import { getSocket, waEvents } from './whatsapp.service';
 import { Message } from '../models/Message';
 import { Chat } from '../models/Chat';
 import { WhatsAppInstance } from '../models/WhatsAppInstance';
@@ -214,41 +214,23 @@ export async function sendButton(instanceId: string, params: SendButtonParams) {
   const sock = await getConnectedSocket(instanceId);
   const jid = normalizeJid(params.to);
 
-  // Construct Baileys Interactive / Formatted Button Message payload
-  const formattedButtonsText = params.buttons
-    .map((b, i) => `\n[ ${i + 1}. ${b.displayText}${b.type === 'url' ? ` -> ${b.idOrUrl || ''}` : ''} ]`)
-    .join('');
-
-  const fullText = `${params.text}${formattedButtonsText}${params.footer ? `\n\n_${params.footer}_` : ''}`;
-
-  const messagePayload: any = {
-    text: fullText,
-  };
-
-  // Baileys raw template buttons support if available
-  if (params.buttons.length > 0) {
-    messagePayload.templateButtons = params.buttons.map((b, index) => {
-      if (b.type === 'url') {
-        return {
-          index: index + 1,
-          urlButton: { displayText: b.displayText, url: b.idOrUrl || '' },
-        };
+  // Construct structured interactive message with clean action buttons
+  const buttonLines = params.buttons
+    .map((b, i) => {
+      const numEmoji = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣'][i] || `${i + 1}️⃣`;
+      if (b.type === 'url' && b.idOrUrl) {
+        return `${numEmoji} *${b.displayText}*\n🔗 ${b.idOrUrl}`;
       }
-      if (b.type === 'call') {
-        return {
-          index: index + 1,
-          callButton: { displayText: b.displayText, phoneNumber: b.idOrUrl || '' },
-        };
+      if (b.type === 'call' && b.idOrUrl) {
+        return `${numEmoji} *${b.displayText}*\n📞 ${b.idOrUrl}`;
       }
-      return {
-        index: index + 1,
-        quickReplyButton: { displayText: b.displayText, id: b.idOrUrl || `btn_${index + 1}` },
-      };
-    });
-    if (params.footer) messagePayload.footer = params.footer;
-  }
+      return `${numEmoji} *${b.displayText}*`;
+    })
+    .join('\n\n');
 
-  const result = await sock.sendMessage(jid, messagePayload);
+  const fullText = `${params.text}\n\n${buttonLines}\n\n👉 _Reply with the option number or tap link above._${params.footer ? `\n\n_${params.footer}_` : ''}`;
+
+  const result = await sock.sendMessage(jid, { text: fullText });
 
   await persistOutgoingMessage(instanceId, {
     msgId: result!.key.id!,
@@ -264,19 +246,19 @@ export async function sendSlider(instanceId: string, params: SendSliderParams) {
   const sock = await getConnectedSocket(instanceId);
   const jid = normalizeJid(params.to);
 
-  // Construct structured multi-card carousel formatted text / template payload
+  // Construct structured multi-card carousel formatted text
   const itemsText = params.items
     .map((item, idx) => {
-      let itemStr = `\n🛍️ *Item ${idx + 1}: ${item.title}*`;
+      let itemStr = `🛍️ *${idx + 1}. ${item.title}*`;
       if (item.price) itemStr += ` — *${item.price}*`;
       if (item.description) itemStr += `\n${item.description}`;
-      if (item.imageUrl) itemStr += `\nImage: ${item.imageUrl}`;
-      if (item.buttonText) itemStr += `\n👉 [ ${item.buttonText} ]`;
+      if (item.imageUrl) itemStr += `\n🔗 Image: ${item.imageUrl}`;
+      if (item.buttonText) itemStr += `\n👉 Reply *${idx + 1}* to ${item.buttonText}`;
       return itemStr;
     })
-    .join('\n-------------------');
+    .join('\n\n────────────────\n\n');
 
-  const fullContent = `🛒 *${params.title}*\n${params.text}\n${itemsText}${params.footer ? `\n\n_${params.footer}_` : ''}`;
+  const fullContent = `🛒 *${params.title}*\n\n${params.text}\n\n────────────────\n\n${itemsText}${params.footer ? `\n\n_${params.footer}_` : ''}`;
 
   const result = await sock.sendMessage(jid, { text: fullContent });
 
@@ -339,4 +321,6 @@ async function persistOutgoingMessage(instanceId: string, data: {
     { instanceId },
     { $inc: { messagesSent: 1, messagesToday: 1 } }
   );
+
+  waEvents.emit(`message:${instanceId}`, { chatId: data.chatId, msgId: data.msgId, type: data.type });
 }

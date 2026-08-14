@@ -7,15 +7,33 @@ import { jidNormalizedUser } from '@whiskeysockets/baileys';
 export function normalizeJid(jidOrPhone: string): string {
   if (!jidOrPhone) return '';
 
-  if (jidOrPhone.endsWith('@g.us') || jidOrPhone.endsWith('@broadcast') || jidOrPhone.endsWith('@lid')) {
-    return jidOrPhone;
+  const str = jidOrPhone.trim();
+
+  if (str.endsWith('@g.us') || str.endsWith('@broadcast') || str.endsWith('@lid')) {
+    return str;
   }
 
-  if (jidOrPhone.includes('@')) {
-    return jidNormalizedUser(jidOrPhone);
+  if (str.includes('@s.whatsapp.net') || str.includes('@c.us')) {
+    const raw = str.split('@')[0].split(':')[0].replace(/[^0-9]/g, '');
+    return `${raw}@s.whatsapp.net`;
   }
 
-  const cleaned = jidOrPhone.replace(/[^0-9]/g, '');
+  if (str.includes('@')) {
+    return jidNormalizedUser(str);
+  }
+
+  let cleaned = str.replace(/[^0-9]/g, '');
+
+  // Strip leading zero if present (e.g. 09762218415 -> 9762218415)
+  if (cleaned.startsWith('0') && cleaned.length === 11) {
+    cleaned = cleaned.substring(1);
+  }
+
+  // If 10 digits starting with 6, 7, 8, or 9 (standard Indian mobile), prepend 91
+  if (cleaned.length === 10 && /^[6-9]/.test(cleaned)) {
+    cleaned = `91${cleaned}`;
+  }
+
   return `${cleaned}@s.whatsapp.net`;
 }
 
