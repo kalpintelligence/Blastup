@@ -644,15 +644,18 @@ function scheduleReconnect(instanceId: string, delayMs = 5000): void {
 }
 
 export function getSocket(instanceId: string = 'default'): WASocket | null {
-  return sockets.get(instanceId) || null;
+  return sockets.get(instanceId) || sockets.get('default') || (sockets.size > 0 ? sockets.values().next().value : null) || null;
 }
 
 export async function getInstanceStatus(instanceId: string = 'default') {
-  return WhatsAppInstance.findOne({ instanceId }).select('-qrCode');
+  return (await WhatsAppInstance.findOne({ instanceId }).select('-qrCode')) ||
+         (await WhatsAppInstance.findOne({ status: 'connected' }).select('-qrCode')) ||
+         (await WhatsAppInstance.findOne({}).select('-qrCode'));
 }
 
 export async function getQRCode(instanceId: string = 'default'): Promise<string | null> {
-  const instance = await WhatsAppInstance.findOne({ instanceId }).select('+qrCode');
+  const instance = (await WhatsAppInstance.findOne({ instanceId }).select('+qrCode')) ||
+                   (await WhatsAppInstance.findOne({}).select('+qrCode'));
   if (!instance || instance.status !== 'qr_ready') return null;
   if (instance.qrExpiresAt && instance.qrExpiresAt < new Date()) {
     return null;

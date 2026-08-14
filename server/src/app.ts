@@ -21,6 +21,7 @@ import apiKeyRoutes from './routes/apikey.routes';
 import campaignRoutes from './routes/campaign.routes';
 import chatbotRoutes from './routes/chatbot.routes';
 import adminRoutes from './routes/admin.routes';
+import analyticsRoutes from './routes/analytics.routes';
 
 import { initCampaignScheduler } from './services/campaignScheduler';
 import { normalizeExistingDatabase } from './utils/jid';
@@ -220,6 +221,13 @@ export function createApp(): express.Application {
     '/api/chatbot',
     apiLimiter,
     chatbotRoutes
+  );
+
+  // ── Analytics API ─────────────────────────────────────────────────
+  app.use(
+    '/api/analytics',
+    apiLimiter,
+    analyticsRoutes
   );
 
   // ── Admin API ────────────────────────────────────────────────────

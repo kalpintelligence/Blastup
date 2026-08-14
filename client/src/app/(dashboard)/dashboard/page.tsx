@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Header from '@/components/layout/Header';
-import { whatsappApi, healthApi, logsApi } from '@/lib/api';
+import { whatsappApi, healthApi, logsApi, analyticsApi } from '@/lib/api';
 import {
   SkeletonStatCard, SkeletonBarChart, SkeletonLogRow
 } from '@/components/ui/Skeleton';
@@ -45,17 +45,28 @@ export default function DashboardPage() {
   const [health, setHealth] = useState<HealthData | null>(null);
   const [recentLogs, setRecentLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [weeklyChartData, setWeeklyChartData] = useState<Array<{
+    date: string;
+    day: string;
+    sent: number;
+    received: number;
+    total: number;
+  }>>([]);
 
   const fetchData = async () => {
     try {
-      const [instRes, healthRes, logsRes] = await Promise.all([
+      const [instRes, healthRes, logsRes, analyticsRes] = await Promise.all([
         whatsappApi.getStatus(),
         healthApi.get(),
         logsApi.list({ limit: 4 }).catch(() => ({ data: [] })),
+        analyticsApi.weeklyMessages().catch(() => ({ data: [] })),
       ]);
       setInstance(instRes.data);
       setHealth(healthRes.data);
       setRecentLogs(logsRes.data || []);
+      if (analyticsRes.data && analyticsRes.data.length > 0) {
+        setWeeklyChartData(analyticsRes.data);
+      }
     } catch {
       // silent catch
     } finally {
@@ -73,16 +84,31 @@ export default function DashboardPage() {
   const sentRatio = totalMessages > 0 ? Math.round(((instance?.messagesSent || 0) / totalMessages) * 100) : 50;
   const receivedRatio = 100 - sentRatio;
 
-  // Visual chart bar heights for Nexus-style representation
-  const weeklyData = [
-    { day: 'Sun', height: '40%' },
-    { day: 'Mon', height: '65%' },
-    { day: 'Tue', height: '90%', highlight: true, count: totalMessages > 0 ? totalMessages : '124' },
-    { day: 'Wed', height: '55%' },
-    { day: 'Thu', height: '75%' },
-    { day: 'Fri', height: '45%' },
-    { day: 'Sat', height: '80%' },
-  ];
+  // Build dynamic chart bars from real analytics data
+  const maxTotal = weeklyChartData.length > 0 ? Math.max(...weeklyChartData.map(d => d.total), 1) : 1;
+  const today = new Date();
+  const todayKey = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
+
+  type ChartBar = { day: string; height: string; highlight?: boolean; count?: number; sent?: number; received?: number };
+
+  const weeklyData: ChartBar[] = weeklyChartData.length > 0
+    ? weeklyChartData.map(d => ({
+        day: d.day,
+        height: `${Math.max(8, Math.round((d.total / maxTotal) * 100))}%`,
+        highlight: d.date === todayKey,
+        count: d.total > 0 ? d.total : undefined,
+        sent: d.sent,
+        received: d.received,
+      }))
+    : [
+        { day: 'Sun', height: '10%' },
+        { day: 'Mon', height: '10%' },
+        { day: 'Tue', height: '10%' },
+        { day: 'Wed', height: '10%' },
+        { day: 'Thu', height: '10%' },
+        { day: 'Fri', height: '10%' },
+        { day: 'Sat', height: '10%', highlight: true },
+      ];
 
   return (
     <>
@@ -182,8 +208,15 @@ export default function DashboardPage() {
             ) : (
               <div style={{ marginTop: 24, marginBottom: 16, height: 160, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', padding: '0 16px' }}>
                 {weeklyData.map((bar) => (
-                  <div key={bar.day} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end', width: 36 }}>
-                    {bar.count && (
+                  <div
+                    key={bar.day}
+                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end', width: 36, position: 'relative', cursor: 'default' }}
+                    title={'count' in bar && bar.count !== undefined
+                      ? `${'sent' in bar ? `↑${(bar as any).sent} sent  ↓${(bar as any).received} received` : `${bar.count} messages`}`
+                      : bar.day
+                    }
+                  >
+                    {'count' in bar && bar.count !== undefined && (
                       <span className="font-serif font-bold text-xs" style={{ marginBottom: 6, color: 'var(--color-primary)' }}>
                         {bar.count}
                       </span>
@@ -194,10 +227,19 @@ export default function DashboardPage() {
                         height: bar.height,
                         backgroundColor: bar.highlight ? 'var(--color-primary)' : 'var(--color-primary-light)',
                         borderRadius: 8,
-                        transition: 'height 0.3s ease',
+                        transition: 'height 0.3s ease, background-color 0.15s ease',
                       }}
                     />
-                    <span className="text-xs text-secondary" style={{ marginTop: 8 }}>{bar.day}</span>
+                    <span
+                      className="text-xs"
+                      style={{
+                        marginTop: 8,
+                        color: bar.highlight ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                        fontWeight: bar.highlight ? 700 : 400,
+                      }}
+                    >
+                      {bar.day}
+                    </span>
                   </div>
                 ))}
               </div>

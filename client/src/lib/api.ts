@@ -350,6 +350,12 @@ export const safeModeApi = {
     }),
 };
 
+// ── Analytics ─────────────────────────────────────────────────────────
+export const analyticsApi = {
+  weeklyMessages: () =>
+    request<{ success: boolean; data: Array<{ date: string; day: string; sent: number; received: number; total: number }> }>(
+      '/api/analytics/messages/weekly'
+    ),
+};
+
 export { ApiError };
-
-
