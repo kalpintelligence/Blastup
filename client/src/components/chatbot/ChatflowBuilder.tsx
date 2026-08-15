@@ -7,7 +7,7 @@ import {
   Move, Send, ArrowRight, Bot,
   MessageSquare, UserCheck, HelpCircle, Check, X,
   Smartphone, ZoomIn, ZoomOut, Play, ChevronRight, Layers,
-  FileImage
+  FileImage, Upload, Link2, ImageOff
 } from 'lucide-react';
 
 export interface FlowNodeButton {
@@ -22,9 +22,12 @@ export interface FlowNode {
   title: string;
   subtitle?: string;
   imageUrl?: string;
+  footer?: string;
+  responseDelaySeconds?: number;
   content: string;
   triggers?: string[];
   buttons?: FlowNodeButton[];
+  nextNodeId?: string;
   x: number;
   y: number;
 }
@@ -111,6 +114,9 @@ export default function ChatflowBuilder({
   const [newTrigger, setNewTrigger] = useState<{ [nodeId: string]: string }>({});
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [zoom, setZoom] = useState(1);
+  const [connectingNodeId, setConnectingNodeId] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   // Dynamic WhatsApp Profile or Random Name with Blue Tick
   const [waProfile, setWaProfile] = useState<{
@@ -170,10 +176,14 @@ export default function ChatflowBuilder({
   const now = () =>
     new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+  const getStartTarget = () => {
+    const startNode = flows.find(node => node.type === 'flowStart') || flows[0];
+    return flows.find(node => node.id === startNode?.nextNodeId) || flows.find(node => node.type === 'mediaButtons') || flows[1] || startNode;
+  };
+
   // Initialize phone simulation on mount or reset
   const resetSimulation = () => {
-    const startNode = flows.find(n => n.type === 'flowStart') || flows[0];
-    const firstConnectedNode = flows.find(n => n.id === 'node-media') || flows[1] || startNode;
+    const firstConnectedNode = getStartTarget();
 
     setSimMessages([
       {
@@ -265,7 +275,7 @@ export default function ChatflowBuilder({
       const triggers = startNode?.triggers?.map(t => t.toLowerCase()) || ['hi', 'hello', 'help'];
       const matched = triggers.some(t => text.toLowerCase().includes(t));
 
-      const mediaNode = flows.find(n => n.type === 'mediaButtons') || flows[1] || flows[0];
+      const mediaNode = getStartTarget();
 
       if (matched && mediaNode) {
         setSimMessages(prev => [
@@ -321,6 +331,7 @@ export default function ChatflowBuilder({
 
   const handleMouseUpBoard = () => {
     setDraggingNodeId(null);
+    setConnectingNodeId(null);
   };
 
   // Node CRUD
@@ -415,6 +426,37 @@ export default function ChatflowBuilder({
     );
   };
 
+  const updateNode = (nodeId: string, changes: Partial<FlowNode>) => {
+    setFlows(prev => prev.map(node => node.id === nodeId ? { ...node, ...changes } : node));
+  };
+
+  const handleImageUpload = async (file?: File) => {
+    if (!file || !selectedNodeId) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Please choose an image file.');
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      const body = new FormData();
+      body.append('file', file);
+      const response = await fetch('/api/chatbot/flow-image', {
+        method: 'POST',
+        credentials: 'include',
+        body,
+      });
+      const result = await response.json();
+      if (!response.ok || !result?.data?.imageUrl) throw new Error(result?.message || 'Upload failed');
+      updateNode(selectedNodeId, { imageUrl: result.data.imageUrl });
+    } catch (error: any) {
+      alert(error?.message || 'Could not upload image.');
+    } finally {
+      setUploadingImage(false);
+      if (imageInputRef.current) imageInputRef.current.value = '';
+    }
+  };
+
   const handleSaveAll = async () => {
     try {
       await onSave(flows);
@@ -425,13 +467,35 @@ export default function ChatflowBuilder({
     }
   };
 
+  const beginConnection = (event: React.MouseEvent, nodeId: string) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setConnectingNodeId(nodeId);
+  };
+
+  const completeConnection = (event: React.MouseEvent, targetNodeId: string) => {
+    if (!connectingNodeId || connectingNodeId === targetNodeId) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setFlows(prev => prev.map(node => {
+      if (node.id !== connectingNodeId) return node;
+      if (node.type === 'flowStart') return { ...node, nextNodeId: targetNodeId };
+      const availableButton = node.buttons?.find(button => !button.targetNodeId);
+      if (availableButton) return { ...node, buttons: node.buttons?.map(button => button.id === availableButton.id ? { ...button, targetNodeId } : button) };
+      return { ...node, buttons: [...(node.buttons || []), { id: `b-link-${Date.now()}`, label: 'Continue', targetNodeId }] };
+    }));
+    setConnectingNodeId(null);
+  };
+
+  const selectedNode = flows.find(node => node.id === selectedNodeId) || null;
+
   // Helper to draw SVG connector curves
   const renderConnectorLines = () => {
     const lines: React.ReactNode[] = [];
 
-    // Line from Flow Start to next node (default media node)
+    // Flow-start links can be moved by dragging the connection port.
     const startNode = flows.find(n => n.type === 'flowStart');
-    const mediaNode = flows.find(n => n.type === 'mediaButtons') || flows[1];
+    const mediaNode = flows.find(n => n.id === startNode?.nextNodeId) || flows.find(n => n.type === 'mediaButtons') || flows[1];
 
     if (startNode && mediaNode && startNode.id !== mediaNode.id) {
       const x1 = startNode.x + 220;
@@ -528,7 +592,7 @@ export default function ChatflowBuilder({
               </span>
             </div>
             <span style={{ fontSize: 11, color: '#64748b' }}>
-              Drag nodes & configure button replies. Test interactively in live phone simulator.
+              Drag cards to reposition. Drag a green connector port onto a card to create a link.
             </span>
           </div>
         </div>
@@ -569,6 +633,68 @@ export default function ChatflowBuilder({
             {savedSuccess ? <><CheckCheck size={14} /> Saved!</> : saving ? <><RefreshCw size={14} className="spin" /> Saving...</> : <><Save size={14} /> Save Changes</>}
           </button>
         </div>
+      </div>
+
+      {/* Selected node editor — every message, image and button is editable. */}
+      <div style={{
+        marginBottom: 16,
+        padding: 16,
+        borderRadius: 16,
+        border: '1px solid #e2e8f0',
+        background: selectedNode ? '#ffffff' : '#f8fafc',
+        boxShadow: selectedNode ? '0 4px 16px rgba(15,23,42,0.05)' : 'none',
+      }}>
+        {selectedNode ? (
+          <>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 12 }}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: '#0f172a' }}>Edit {selectedNode.title}</div>
+                <div style={{ fontSize: 12, color: '#64748b' }}>Changes update the live tester immediately and are saved with the flow.</div>
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#0f766e', background: '#ccfbf1', borderRadius: 999, padding: '4px 9px' }}>
+                {selectedNode.type === 'flowStart' ? 'Trigger' : 'Message step'}
+              </span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(160px, .7fr) minmax(260px, 1.5fr) minmax(260px, 1.2fr)', gap: 12 }}>
+              <label style={{ display: 'grid', gap: 5, fontSize: 11, fontWeight: 700, color: '#475569' }}>
+                Step name
+                <input className="input" value={selectedNode.title} onChange={e => updateNode(selectedNode.id, { title: e.target.value })} placeholder="Welcome message" />
+              </label>
+              <label style={{ display: 'grid', gap: 5, fontSize: 11, fontWeight: 700, color: '#475569' }}>
+                Message text
+                <textarea className="input" value={selectedNode.content} onChange={e => updateNode(selectedNode.id, { content: e.target.value })} placeholder="Write the message shown at this step..." rows={3} style={{ resize: 'vertical', minHeight: 76 }} />
+              </label>
+              <div style={{ display: 'grid', gap: 6 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#475569' }}>Image (optional)</div>
+                <input type="file" accept="image/*" ref={imageInputRef} onChange={e => handleImageUpload(e.target.files?.[0])} style={{ display: 'none' }} />
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => imageInputRef.current?.click()} disabled={uploadingImage}>
+                    <Upload size={13} /> {uploadingImage ? 'Uploading…' : 'Upload image'}
+                  </button>
+                  {selectedNode.imageUrl && <button type="button" className="btn btn-secondary btn-sm" onClick={() => updateNode(selectedNode.id, { imageUrl: undefined })}><ImageOff size={13} /> Remove</button>}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <Link2 size={12} color="#64748b" />
+                  <input className="input" value={selectedNode.imageUrl || ''} onChange={e => updateNode(selectedNode.id, { imageUrl: e.target.value || undefined })} placeholder="Or paste image URL" style={{ fontSize: 12 }} />
+                </div>
+              </div>
+            </div>
+            {selectedNode.type !== 'flowStart' && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(260px, 1fr) 180px', gap: 12, marginTop: 12 }}>
+                <label style={{ display: 'grid', gap: 5, fontSize: 11, fontWeight: 700, color: '#475569' }}>
+                  Footer / follow-up note (optional)
+                  <input className="input" value={selectedNode.footer || ''} onChange={e => updateNode(selectedNode.id, { footer: e.target.value || undefined })} placeholder="e.g. Reply MENU anytime to return" />
+                </label>
+                <label style={{ display: 'grid', gap: 5, fontSize: 11, fontWeight: 700, color: '#475569' }}>
+                  Reply delay (seconds)
+                  <input className="input" type="number" min="0" max="8" value={selectedNode.responseDelaySeconds ?? 0} onChange={e => updateNode(selectedNode.id, { responseDelaySeconds: Math.min(8, Math.max(0, Number(e.target.value) || 0)) })} />
+                </label>
+              </div>
+            )}
+          </>
+        ) : (
+          <div style={{ color: '#64748b', fontSize: 13 }}>Select a flow step to edit its text, image and reply buttons.</div>
+        )}
       </div>
 
       {/* ── Main Workspace: Canvas Board (Left) + Phone Simulator (Right) ── */}
@@ -670,6 +796,7 @@ export default function ChatflowBuilder({
                 <div
                   key={node.id}
                   onMouseDown={e => handleMouseDownNode(e, node.id)}
+                  onMouseUp={e => completeConnection(e, node.id)}
                   style={{
                     position: 'absolute',
                     left: node.x,
@@ -739,6 +866,19 @@ export default function ChatflowBuilder({
                       </button>
                     )}
                   </div>
+
+                  <button
+                    type="button"
+                    onMouseDown={e => beginConnection(e, node.id)}
+                    title="Drag to another step to connect"
+                    aria-label={`Connect ${node.title} to another step`}
+                    style={{
+                      position: 'absolute', right: -9, top: '50%', transform: 'translateY(-50%)',
+                      width: 18, height: 18, borderRadius: '50%', border: '3px solid white',
+                      background: connectingNodeId === node.id ? '#f59e0b' : '#10b981', cursor: 'crosshair',
+                      boxShadow: '0 2px 6px rgba(15,23,42,.25)', zIndex: 25,
+                    }}
+                  />
 
                   {/* Node Body */}
                   <div style={{ padding: 14 }}>

@@ -77,9 +77,6 @@ export default function ChatbotLeadsPage() {
   useEffect(() => {
     if (!socket) return;
 
-    // Join room or register interest
-    socket.emit('join', 'default');
-
     socket.on('chatbot:lead:message', (payload: any) => {
       setLeads(prevLeads => {
         // Check if lead already exists

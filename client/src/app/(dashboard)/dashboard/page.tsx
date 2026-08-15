@@ -52,14 +52,16 @@ export default function DashboardPage() {
     received: number;
     total: number;
   }>>([]);
+  const [overview, setOverview] = useState<any>(null);
 
   const fetchData = async () => {
     try {
-      const [instRes, healthRes, logsRes, analyticsRes] = await Promise.all([
+      const [instRes, healthRes, logsRes, analyticsRes, overviewRes] = await Promise.all([
         whatsappApi.getStatus(),
         healthApi.get(),
         logsApi.list({ limit: 4 }).catch(() => ({ data: [] })),
         analyticsApi.weeklyMessages().catch(() => ({ data: [] })),
+        analyticsApi.overview(7).catch(() => ({ data: null })),
       ]);
       setInstance(instRes.data);
       setHealth(healthRes.data);
@@ -67,6 +69,7 @@ export default function DashboardPage() {
       if (analyticsRes.data && analyticsRes.data.length > 0) {
         setWeeklyChartData(analyticsRes.data);
       }
+      setOverview(overviewRes.data);
     } catch {
       // silent catch
     } finally {
@@ -83,6 +86,7 @@ export default function DashboardPage() {
   const totalMessages = (instance?.messagesSent || 0) + (instance?.messagesReceived || 0);
   const sentRatio = totalMessages > 0 ? Math.round(((instance?.messagesSent || 0) / totalMessages) * 100) : 50;
   const receivedRatio = 100 - sentRatio;
+  const trendLabel = (value: number | null | undefined) => value === null || value === undefined ? 'No prior data' : `${value >= 0 ? '+' : ''}${value}% vs prior week`;
 
   // Build dynamic chart bars from real analytics data
   const maxTotal = weeklyChartData.length > 0 ? Math.max(...weeklyChartData.map(d => d.total), 1) : 1;
@@ -135,7 +139,7 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between" style={{ marginTop: 8 }}>
                   <span className="metric-value">{instance?.messagesSent ?? 0}</span>
                   <span className="badge-growth positive">
-                    +15.8% <ArrowUpRight size={12} />
+                    {trendLabel(overview?.messages?.trend)} <ArrowUpRight size={12} />
                   </span>
                 </div>
               </div>
@@ -149,7 +153,7 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between" style={{ marginTop: 8 }}>
                   <span className="metric-value">{instance?.totalContacts ?? 0}</span>
                   <span className="badge-growth positive">
-                    +24.2% <ArrowUpRight size={12} />
+                    {overview?.leads?.current ?? 0} chatbot leads
                   </span>
                 </div>
               </div>
@@ -163,7 +167,7 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between" style={{ marginTop: 8 }}>
                   <span className="metric-value">{instance?.totalChats ?? 0}</span>
                   <span className="badge-growth positive">
-                    +8.4% <ArrowUpRight size={12} />
+                    {overview?.campaigns?.campaigns ?? 0} campaigns
                   </span>
                 </div>
               </div>
@@ -177,7 +181,7 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between" style={{ marginTop: 8 }}>
                   <span className="metric-value">{instance?.messagesReceived ?? 0}</span>
                   <span className="badge-growth positive">
-                    +12.1% <ArrowUpRight size={12} />
+                    {overview?.messages?.received ?? 0} this week
                   </span>
                 </div>
               </div>
@@ -200,7 +204,7 @@ export default function DashboardPage() {
                   Daily traffic distribution &amp; response velocity
                 </p>
               </div>
-              <span className="badge badge-neutral">Weekly Overview</span>
+              <span className="badge badge-neutral">Last {overview?.days || 7} days</span>
             </div>
 
             {loading ? (
@@ -256,7 +260,7 @@ export default function DashboardPage() {
                   Normal Range
                 </span>
               </div>
-              <span className="text-xs text-secondary font-medium">99.8% Delivery Success</span>
+              <span className="text-xs text-secondary font-medium">{overview ? `${overview.campaigns.deliveryRate}% campaign delivery` : 'Loading delivery data…'}</span>
             </div>
           </div>
 
@@ -290,8 +294,8 @@ export default function DashboardPage() {
             <div style={{ padding: 14, backgroundColor: 'var(--color-bg)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', gap: 12 }}>
               <Zap size={20} style={{ color: 'var(--color-primary)' }} />
               <div>
-                <div className="font-semibold text-xs">Automated Engine</div>
-                <div className="text-xs text-secondary" style={{ fontSize: 10 }}>Baileys v6.7 Multi-Device Socket</div>
+                <div className="font-semibold text-xs">Chatbot Performance</div>
+                <div className="text-xs text-secondary" style={{ fontSize: 10 }}>{overview ? `${overview.leads.current} leads · ${overview.campaigns.readRate}% campaign read rate` : 'Loading live metrics…'}</div>
               </div>
             </div>
           </div>

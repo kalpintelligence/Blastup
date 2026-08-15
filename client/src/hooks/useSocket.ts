@@ -13,6 +13,7 @@ export function useSocket() {
     const socketIo = io(backendUrl, {
       transports: ['websocket', 'polling'],
       autoConnect: true,
+      withCredentials: true,
     });
 
     setSocket(socketIo);

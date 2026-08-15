@@ -357,6 +357,7 @@ export const analyticsApi = {
     request<{ success: boolean; data: Array<{ date: string; day: string; sent: number; received: number; total: number }> }>(
       '/api/analytics/messages/weekly'
     ),
+  overview: (days = 7) => request<{ success: boolean; data: any }>('/api/analytics/overview', { params: { days } }),
 };
 
 export { ApiError };
