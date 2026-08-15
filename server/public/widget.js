@@ -104,6 +104,13 @@
 
     window.__BLASTUP_WIDGET_LOADED__ = true;
 
+    // Render inside a Shadow DOM so a host website's global CSS, font rules,
+    // and animations cannot change the widget's appearance.
+    var host = document.createElement('div');
+    host.id = 'blastup-widget-root';
+    host.style.cssText = 'all: initial; display: contents;';
+    var shadow = host.attachShadow ? host.attachShadow({ mode: 'open' }) : host;
+
 
     // ------------------------------------------------------------
     // CSS
@@ -939,9 +946,75 @@
       opacity: 0.95;
       transform: translateY(-1px);
     }
+
+    /* Keep the embedded glass theme visually identical to the dashboard
+       simulator, regardless of the typography or reset stylesheet used by
+       the website hosting the widget. */
+    .blastup-theme-glassmorphic .blastup-widget-panel {
+      background: rgba(255, 255, 255, 0.95) !important;
+      border: 1px solid rgba(255, 255, 255, 0.6) !important;
+      box-shadow: 0 25px 60px -10px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.15) !important;
+    }
+    .blastup-theme-glassmorphic .blastup-widget-panel::before {
+      display: none;
+      animation: none;
+    }
+    .blastup-theme-glassmorphic .blastup-widget-header {
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
+    }
+    .blastup-theme-glassmorphic .blastup-widget-avatar {
+      width: 56px;
+      height: 56px;
+      background: linear-gradient(${gradientAngle}deg, ${primaryColor}25, ${secondaryColor}25) !important;
+      border: 2px solid ${primaryColor}30;
+      box-shadow: 0 8px 24px ${primaryColor}18 !important;
+    }
+    .blastup-theme-glassmorphic .blastup-widget-status::before {
+      background: ${primaryColor};
+      box-shadow: 0 0 6px ${primaryColor};
+    }
+    .blastup-theme-glassmorphic .blastup-widget-message.bot {
+      background: #f1f5f9 !important;
+      border: 1px solid #e2e8f0 !important;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+    .blastup-theme-glassmorphic .blastup-widget-message.user {
+      background: ${primaryColor}20 !important;
+      color: #1e293b !important;
+      border: 1px solid ${primaryColor}30 !important;
+    }
+    .blastup-theme-glassmorphic .blastup-widget-input-area {
+      background: rgba(255, 255, 255, 0.7) !important;
+      border-top: 1px solid rgba(0, 0, 0, 0.06) !important;
+    }
+    .blastup-theme-glassmorphic .blastup-widget-input,
+    .blastup-theme-glassmorphic .blastup-widget-lead-input {
+      background: #f8fafc !important;
+      border: 1px solid #e2e8f0 !important;
+    }
+    .blastup-theme-glassmorphic .blastup-widget-send {
+      background: #f8fafc !important;
+      color: ${primaryColor} !important;
+      border: 1px solid #e2e8f0 !important;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+    @media (max-width: 520px) {
+      .blastup-theme-glassmorphic .blastup-widget-button {
+        width: 56px !important;
+        height: 56px !important;
+        padding: 0 !important;
+      }
+      .blastup-theme-glassmorphic .blastup-widget-button span {
+        display: none;
+      }
+      .blastup-widget-panel {
+        width: calc(100vw - 24px);
+        height: min(620px, calc(100vh - 92px));
+      }
+    }
   `;
 
-    document.head.appendChild(style);
+    shadow.appendChild(style);
 
 
     // ------------------------------------------------------------
@@ -1117,7 +1190,8 @@
 
     root.appendChild(panel);
 
-    document.body.appendChild(root);
+    shadow.appendChild(root);
+    document.body.appendChild(host);
 
 
     // ------------------------------------------------------------
