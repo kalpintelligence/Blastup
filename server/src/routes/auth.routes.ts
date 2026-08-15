@@ -13,7 +13,8 @@ const loginSchema = z.object({
 });
 
 const registerSchema = z.object({
-  username: z.string().min(3).max(50).trim(),
+  email: z.string().email().max(254).trim(),
+  phone: z.string().min(7).max(20).trim(),
   password: z.string().min(8).max(128),
 });
 
@@ -58,9 +59,12 @@ router.post('/login', loginLimiter, validate(loginSchema), authController.login)
  *         application/json:
  *           schema:
  *             type: object
- *             required: [username, password]
+ *             required: [email, phone, password]
  *             properties:
- *               username:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               phone:
  *                 type: string
  *               password:
  *                 type: string

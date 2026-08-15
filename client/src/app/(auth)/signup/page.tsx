@@ -4,12 +4,13 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, Lock, User } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, Phone } from 'lucide-react';
 import { authApi } from '@/lib/api';
 
 export default function SignupPage() {
   const router = useRouter();
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -32,7 +33,7 @@ export default function SignupPage() {
 
     setLoading(true);
     try {
-      await authApi.register(username.trim(), password);
+      await authApi.register(email.trim(), phone.trim(), password);
       router.push('/dashboard');
       router.refresh();
     } catch (err: any) {
@@ -65,9 +66,9 @@ export default function SignupPage() {
 
         <form className="login-form" onSubmit={handleSubmit}>
           <div className="input-group">
-            <label className="input-label" htmlFor="username">Username</label>
+            <label className="input-label" htmlFor="email">Email</label>
             <div style={{ position: 'relative' }}>
-              <User
+              <Mail
                 size={16}
                 style={{
                   position: 'absolute', left: 12, top: '50%',
@@ -76,16 +77,42 @@ export default function SignupPage() {
                 }}
               />
               <input
-                id="username"
-                type="text"
+                id="email"
+                type="email"
                 className="input"
                 style={{ paddingLeft: 38 }}
-                placeholder="your_username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                autoComplete="username"
-                minLength={3}
-                maxLength={50}
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+                maxLength={254}
+                required
+                disabled={loading}
+              />
+            </div>
+          </div>
+
+          <div className="input-group">
+            <label className="input-label" htmlFor="phone">Phone Number</label>
+            <div style={{ position: 'relative' }}>
+              <Phone
+                size={16}
+                style={{
+                  position: 'absolute', left: 12, top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--color-text-tertiary)', pointerEvents: 'none',
+                }}
+              />
+              <input
+                id="phone"
+                type="tel"
+                className="input"
+                style={{ paddingLeft: 38 }}
+                placeholder="+1 555 123 4567"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                autoComplete="tel"
+                maxLength={20}
                 required
                 disabled={loading}
               />

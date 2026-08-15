@@ -4,6 +4,7 @@ import { env } from '../config/env';
 
 export interface IUser extends Document {
   username: string;
+  phone?: string;
   password: string;
   role: 'admin' | 'user';
   failedLoginAttempts: number;
@@ -29,6 +30,14 @@ const userSchema = new Schema<IUser>(
       minlength: 3,
       maxlength: 50,
       index: true,
+    },
+    phone: {
+      type: String,
+      required: false,
+      unique: true,
+      sparse: true,
+      trim: true,
+      maxlength: 20,
     },
     password: {
       type: String,

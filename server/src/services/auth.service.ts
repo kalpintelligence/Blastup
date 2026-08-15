@@ -15,6 +15,14 @@ export interface LoginParams {
   userAgent: string;
 }
 
+export interface RegisterParams {
+  email: string;
+  phone: string;
+  password: string;
+  ip: string;
+  userAgent: string;
+}
+
 export interface LoginResult {
   token: string;
   user: {
@@ -97,16 +105,18 @@ export async function loginUser(params: LoginParams): Promise<LoginResult> {
   };
 }
 
-export async function registerUser(params: LoginParams): Promise<LoginResult> {
-  const { username, password, ip, userAgent } = params;
+export async function registerUser(params: RegisterParams): Promise<LoginResult> {
+  const { email, phone, password, ip, userAgent } = params;
+  const username = email.toLowerCase().trim();
 
-  const existing = await User.findOne({ username: username.toLowerCase() });
+  const existing = await User.findOne({ $or: [{ username }, { phone }] });
   if (existing) {
-    throw Boom.conflict('Username already taken');
+    throw Boom.conflict('An account already exists with this email or phone number');
   }
 
   const user = await User.create({
-    username: username.toLowerCase().trim(),
+    username,
+    phone,
     password,
     role: 'user',
   });

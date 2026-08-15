@@ -44,18 +44,18 @@ export async function login(req: Request, res: Response, next: NextFunction) {
 
 export async function register(req: Request, res: Response, next: NextFunction) {
   try {
-    const { username, password } = req.body;
+    const { email, phone, password } = req.body;
     const ip = req.ip || 'unknown';
     const userAgent = req.headers['user-agent'] || 'unknown';
 
-    const result = await registerUser({ username, password, ip, userAgent });
+    const result = await registerUser({ email, phone, password, ip, userAgent });
 
     res.cookie('wa_token', result.token, COOKIE_OPTIONS);
 
     await writeLog({
       level: 'info',
       category: 'auth',
-      message: `New user registered: ${username}`,
+      message: `New user registered: ${email}`,
       userId: result.user.id,
       ip,
       userAgent,
