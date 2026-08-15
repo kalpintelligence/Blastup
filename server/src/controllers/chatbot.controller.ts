@@ -6,6 +6,7 @@ import { ChatbotKnowledge } from '../models/ChatbotKnowledge';
 import * as knowledgeEngine from '../services/knowledgeEngine';
 import { parsePagination, buildPaginatedResult } from '../utils/pagination';
 import { emitLeadMessage, emitChatbotStatus } from '../services/socket.service';
+import Boom from '@hapi/boom';
 
 export async function getChatbot(req: AuthRequest, res: Response, next: NextFunction) {
   try {
@@ -100,6 +101,24 @@ export async function updateChatbot(req: AuthRequest, res: Response, next: NextF
   }
 }
 
+/** Store a flow image and return a URL that can be used in WhatsApp replies. */
+export async function uploadFlowImage(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    if (!req.file || !req.file.mimetype.startsWith('image/')) {
+      throw Boom.badRequest('Please upload an image file.');
+    }
+
+    const protocol = req.protocol;
+    const host = req.get('host');
+    res.status(201).json({
+      success: true,
+      data: { imageUrl: `${protocol}://${host}/uploads/${req.file.filename}` },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function handleWidgetMessage(req: Request, res: Response, next: NextFunction) {
   try {
     // Widget sends body as text/plain to avoid CORS preflight.
@@ -134,13 +153,51 @@ export async function handleWidgetMessage(req: Request, res: Response, next: Nex
 
     const msg = message.toLowerCase().trim();
     let reply = chatbot.fallbackMessage || "Thanks for reaching out! 🚀 Share your details or ask a question and our team will connect with you right away.";
+    let matchedFlow = false;
+
+    // Use the same saved no-code flow for the embedded website chatbot.
+    if (chatbot.replySource === 'nocode' && Array.isArray(chatbot.flows) && chatbot.flows.length > 0) {
+      const flows = chatbot.flows as any[];
+      const formatNode = (node: any) => {
+        let text = node.content || node.title || chatbot.fallbackMessage;
+        if (node.buttons?.length) {
+          text += `\n\n${node.buttons.map((button: any, index: number) => `${index + 1}. ${button.label}`).join('\n')}`;
+        }
+        return node.footer ? `${text}\n\n${node.footer}` : text;
+      };
+      const startNode = flows.find(node => node.type === 'flowStart');
+      const triggers = (startNode?.triggers || ['hi', 'hello', 'help']).map((trigger: string) => trigger.toLowerCase().trim());
+      const isStart = triggers.some((trigger: string) => trigger && (msg === trigger || msg.includes(trigger)));
+
+      if (isStart) {
+        const target = flows.find(node => node.id === startNode?.nextNodeId) || flows.find(node => node.type === 'mediaButtons') || flows.find(node => node.id !== startNode?.id);
+        if (target) {
+          reply = formatNode(target);
+          matchedFlow = true;
+        }
+      } else {
+        for (const node of flows) {
+          const button = node.buttons?.find((item: any, index: number) => {
+            const label = (item.label || '').toLowerCase().trim();
+            return label && (msg === label || msg === String(index + 1) || msg === `option ${index + 1}`);
+          });
+          if (!button?.targetNodeId) continue;
+          const target = flows.find(node => node.id === button.targetNodeId);
+          if (target) {
+            reply = formatNode(target);
+            matchedFlow = true;
+            break;
+          }
+        }
+      }
+    }
 
     // Check for common greetings
     const isGreeting = /^(hey|hi|hello|hola|hey there|good morning|good afternoon|good evening|yo|hlo)\b/i.test(msg);
     let matchedRule = false;
 
     // Evaluate rules
-    if (chatbot.rules && chatbot.rules.length > 0) {
+    if (!matchedFlow && chatbot.rules && chatbot.rules.length > 0) {
       for (const rule of chatbot.rules) {
         if (!rule.keyword) continue;
         const kw = rule.keyword.toLowerCase().trim();
@@ -158,13 +215,13 @@ export async function handleWidgetMessage(req: Request, res: Response, next: Nex
       }
     }
 
-    if (!matchedRule && isGreeting) {
+    if (!matchedFlow && !matchedRule && isGreeting) {
       reply = "Hello! 👋 Thanks for reaching out. How can we help you today? Feel free to ask any question or leave your contact details so our team can connect with you!";
     }
 
     // ── Knowledge Engine ─────────────────────────────────────────────────────
     // If no rule matched and not a simple greeting, query knowledge base
-    if (!matchedRule && !isGreeting) {
+    if (!matchedFlow && !matchedRule && !isGreeting) {
       try {
         const knowledgeItems = await ChatbotKnowledge.find({
           instanceId: (chatbot as any).instanceId,

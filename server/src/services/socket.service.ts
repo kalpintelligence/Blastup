@@ -1,6 +1,11 @@
 import { Server as SocketIOServer } from 'socket.io';
 import type { Server as HTTPServer } from 'http';
+import jwt from 'jsonwebtoken';
 import { logger } from '../config/logger';
+import { env } from '../config/env';
+import { Session } from '../models/Session';
+import { User } from '../models/User';
+import { hashToken } from '../utils/crypto';
 
 let io: SocketIOServer | null = null;
 
@@ -11,20 +16,34 @@ let io: SocketIOServer | null = null;
 export function initSocket(httpServer: HTTPServer): SocketIOServer {
   io = new SocketIOServer(httpServer, {
     cors: {
-      origin: '*',
+      origin: env.CLIENT_URL,
       methods: ['GET', 'POST'],
+      credentials: true,
     },
     transports: ['websocket', 'polling'],
   });
 
+  io.use(async (socket, next) => {
+    try {
+      const cookie = socket.handshake.headers.cookie || '';
+      const token = cookie.match(/(?:^|;\\s*)wa_token=([^;]+)/)?.[1];
+      if (!token) return next(new Error('Authentication required'));
+
+      const decoded = jwt.verify(decodeURIComponent(token), env.JWT_SECRET) as jwt.JwtPayload;
+      const session = await Session.findOne({ tokenHash: hashToken(decodeURIComponent(token)), isRevoked: false });
+      const user = decoded.sub ? await User.findById(decoded.sub).select('isActive') : null;
+      if (!session || !user?.isActive) return next(new Error('Invalid session'));
+
+      socket.data.instanceId = user._id.toString();
+      next();
+    } catch {
+      next(new Error('Authentication required'));
+    }
+  });
+
   io.on('connection', (socket) => {
     logger.info(`[Socket] Client connected: ${socket.id}`);
-
-    // Allow dashboard clients to join a room keyed by instanceId
-    socket.on('join', (instanceId: string) => {
-      socket.join(`instance:${instanceId}`);
-      logger.info(`[Socket] ${socket.id} joined room instance:${instanceId}`);
-    });
+    socket.join(`instance:${socket.data.instanceId}`);
 
     socket.on('disconnect', () => {
       logger.info(`[Socket] Client disconnected: ${socket.id}`);
@@ -64,9 +83,8 @@ export interface ChatbotLeadMessagePayload {
 export function emitLeadMessage(payload: ChatbotLeadMessagePayload): void {
   try {
     const ioServer = getIO();
-    // Emit to the specific instance room AND globally (for clients not yet in a room)
+    // Never broadcast account data outside the owning instance room.
     ioServer.to(`instance:${payload.instanceId}`).emit('chatbot:lead:message', payload);
-    ioServer.emit('chatbot:lead:message', payload);
   } catch {
     // Non-fatal — socket may not be initialized in test environments
   }
@@ -83,7 +101,7 @@ export interface ChatbotStatusPayload {
 export function emitChatbotStatus(payload: ChatbotStatusPayload): void {
   try {
     const ioServer = getIO();
-    ioServer.emit('chatbot:status', payload);
+    ioServer.to(`instance:${payload.instanceId}`).emit('chatbot:status', payload);
   } catch {
     // Non-fatal
   }

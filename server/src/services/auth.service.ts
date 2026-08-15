@@ -4,6 +4,7 @@ import { signToken } from '../utils/jwt';
 import { hashToken } from '../utils/crypto';
 import { env } from '../config/env';
 import { logger } from '../config/logger';
+import { provisionWhatsAppInstance } from './whatsapp.service';
 import Boom from '@hapi/boom';
 import ms from 'ms';
 
@@ -109,6 +110,9 @@ export async function registerUser(params: LoginParams): Promise<LoginResult> {
     password,
     role: 'user',
   });
+
+  // A new account always begins with its own blank WhatsApp connection.
+  await provisionWhatsAppInstance(user._id.toString());
 
   const token = signToken({
     sub: user._id.toString(),

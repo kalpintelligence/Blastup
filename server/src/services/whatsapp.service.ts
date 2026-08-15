@@ -39,7 +39,25 @@ const reconnectTimers = new Map<string, NodeJS.Timeout>();
 const reconnectAttempts = new Map<string, number>();
 const MAX_RECONNECT_ATTEMPTS = 5;
 
-export async function initWhatsApp(instanceId: string = 'default'): Promise<void> {
+/** Supports both local relative paths and Docker's absolute /app/sessions mount. */
+function getSessionDir(instanceId: string): string {
+  const baseDir = path.isAbsolute(env.SESSION_DIR)
+    ? env.SESSION_DIR
+    : path.resolve(process.cwd(), env.SESSION_DIR);
+  return path.join(baseDir, instanceId);
+}
+
+/** Creates an empty, private WhatsApp instance without starting a connection. */
+export async function provisionWhatsAppInstance(instanceId: string) {
+  const sessionPath = getSessionDir(instanceId);
+  return WhatsAppInstance.findOneAndUpdate(
+    { instanceId },
+    { $setOnInsert: { instanceId, sessionPath, status: 'disconnected' } },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+}
+
+export async function initWhatsApp(instanceId: string): Promise<void> {
   if (connectingStates.get(instanceId)) {
     return;
   }
@@ -47,17 +65,13 @@ export async function initWhatsApp(instanceId: string = 'default'): Promise<void
   connectingStates.set(instanceId, true);
 
   try {
-    const sessionDir = path.join(process.cwd(), env.SESSION_DIR, instanceId);
+    const sessionDir = getSessionDir(instanceId);
     fs.mkdirSync(sessionDir, { recursive: true });
 
     await WhatsAppInstance.findOneAndUpdate(
       { instanceId },
-      {
-        instanceId,
-        sessionPath: sessionDir,
-        status: 'connecting',
-      },
-      { upsert: true, new: true }
+      { $set: { status: 'connecting' }, $setOnInsert: { instanceId, sessionPath: sessionDir } },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
     const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
@@ -184,7 +198,7 @@ export async function initWhatsApp(instanceId: string = 'default'): Promise<void
         // must not survive on disk — the next connect attempt would just
         // reuse them and silently die again with no QR.
         if (isLoggedOut) {
-          const sessionDir = path.join(process.cwd(), env.SESSION_DIR, instanceId);
+          const sessionDir = getSessionDir(instanceId);
           if (fs.existsSync(sessionDir)) {
             try {
               fs.rmSync(sessionDir, { recursive: true, force: true });
@@ -407,11 +421,8 @@ async function handleChatbotAutoResponse(instanceId: string, toJid: string, inco
     const { ChatbotKnowledge } = await import('../models/ChatbotKnowledge');
     const knowledgeEngine = await import('./knowledgeEngine');
 
-    // Find active chatbot: match instanceId, 'default', or any enabled chatbot configuration
-    const chatbot = await Chatbot.findOne({
-      $or: [{ instanceId }, { instanceId: 'default' }, { enabled: true }],
-      enabled: true,
-    }).sort({ updatedAt: -1 }).lean();
+    // Chatbot configuration is private to this WhatsApp instance.
+    const chatbot = await Chatbot.findOne({ instanceId, enabled: true }).lean();
 
     if (!chatbot || !incomingText) {
       logger.info(`[${instanceId}] Chatbot not enabled or no incoming text to auto-respond.`);
@@ -429,6 +440,7 @@ async function handleChatbotAutoResponse(instanceId: string, toJid: string, inco
     const lowerText = incomingText.toLowerCase().trim();
     let replyText: string | null = null;
     let replyImageUrl: string | undefined = undefined;
+    let replyNode: any = null;
 
     // ── MODE A: NO-CODE VISUAL FLOW ENGINE ─────────────────────────────────
     if (replySource === 'nocode') {
@@ -445,8 +457,9 @@ async function handleChatbotAutoResponse(instanceId: string, toJid: string, inco
 
         if (isStartTrigger) {
           // Find first connected node after start (e.g. mediaButtons or message)
-          const welcomeNode = flows.find(n => n.type === 'mediaButtons') || flows.find(n => n.id !== 'node-start') || startNode;
+          const welcomeNode = flows.find(n => n.id === startNode?.nextNodeId) || flows.find(n => n.type === 'mediaButtons') || flows.find(n => n.id !== 'node-start') || startNode;
           if (welcomeNode) {
+            replyNode = welcomeNode;
             replyText = welcomeNode.content || welcomeNode.title;
             replyImageUrl = welcomeNode.imageUrl;
 
@@ -476,6 +489,7 @@ async function handleChatbotAutoResponse(instanceId: string, toJid: string, inco
               ) {
                 const targetNode = flows.find(n => n.id === (btn.targetNodeId || btn.nextNodeId));
                 if (targetNode) {
+                  replyNode = targetNode;
                   replyText = targetNode.content || targetNode.title;
                   replyImageUrl = targetNode.imageUrl;
 
@@ -498,6 +512,7 @@ async function handleChatbotAutoResponse(instanceId: string, toJid: string, inco
               if (node.triggers && Array.isArray(node.triggers)) {
                 const matchedTrg = node.triggers.some((t: string) => lowerText.includes(t.toLowerCase().trim()));
                 if (matchedTrg) {
+                  replyNode = node;
                   replyText = node.content;
                   replyImageUrl = node.imageUrl;
                   if (node.buttons && node.buttons.length > 0) {
@@ -565,6 +580,9 @@ async function handleChatbotAutoResponse(instanceId: string, toJid: string, inco
 
     // ── 5. Send WhatsApp Message ───────────────────────────────────────────
     if (replyText) {
+      if (replyNode?.footer) replyText += `\n\n${replyNode.footer}`;
+      const delayMs = Math.min(8000, Math.max(0, Number(replyNode?.responseDelaySeconds || 0) * 1000));
+      if (delayMs) await new Promise(resolve => setTimeout(resolve, delayMs));
       const normalizedTo = normalizeJid(toJid);
       let res: any;
 
@@ -665,19 +683,16 @@ function scheduleReconnect(instanceId: string, delayMs = 5000): void {
   reconnectTimers.set(instanceId, timer);
 }
 
-export function getSocket(instanceId: string = 'default'): WASocket | null {
-  return sockets.get(instanceId) || sockets.get('default') || (sockets.size > 0 ? sockets.values().next().value : null) || null;
+export function getSocket(instanceId: string): WASocket | null {
+  return sockets.get(instanceId) || null;
 }
 
-export async function getInstanceStatus(instanceId: string = 'default') {
-  return (await WhatsAppInstance.findOne({ instanceId }).select('-qrCode')) ||
-         (await WhatsAppInstance.findOne({ status: 'connected' }).select('-qrCode')) ||
-         (await WhatsAppInstance.findOne({}).select('-qrCode'));
+export async function getInstanceStatus(instanceId: string) {
+  return WhatsAppInstance.findOne({ instanceId }).select('-qrCode');
 }
 
-export async function getQRCode(instanceId: string = 'default'): Promise<string | null> {
-  const instance = (await WhatsAppInstance.findOne({ instanceId }).select('+qrCode')) ||
-                   (await WhatsAppInstance.findOne({}).select('+qrCode'));
+export async function getQRCode(instanceId: string): Promise<string | null> {
+  const instance = await WhatsAppInstance.findOne({ instanceId }).select('+qrCode');
   if (!instance || instance.status !== 'qr_ready') return null;
   if (instance.qrExpiresAt && instance.qrExpiresAt < new Date()) {
     return null;
@@ -685,7 +700,7 @@ export async function getQRCode(instanceId: string = 'default'): Promise<string 
   return instance.qrCode;
 }
 
-export async function disconnectWhatsApp(instanceId: string = 'default'): Promise<void> {
+export async function disconnectWhatsApp(instanceId: string): Promise<void> {
   manualDisconnects.set(instanceId, true);
   // Clear all timers
   const timer = reconnectTimers.get(instanceId);
@@ -704,7 +719,7 @@ export async function disconnectWhatsApp(instanceId: string = 'default'): Promis
 
   // Logout invalidates creds server-side; stale auth files must go or the
   // next connect attempt reuses them and never gets a fresh QR.
-  const sessionDir = path.join(process.cwd(), env.SESSION_DIR, instanceId);
+  const sessionDir = getSessionDir(instanceId);
   if (fs.existsSync(sessionDir)) {
     try {
       fs.rmSync(sessionDir, { recursive: true, force: true });
@@ -727,7 +742,7 @@ export async function disconnectWhatsApp(instanceId: string = 'default'): Promis
   connectingStates.set(instanceId, false);
 }
 
-export async function restartWhatsApp(instanceId: string = 'default'): Promise<void> {
+export async function restartWhatsApp(instanceId: string): Promise<void> {
   // Clear all timers and counters
   const timer = reconnectTimers.get(instanceId);
   if (timer) { clearTimeout(timer); reconnectTimers.delete(instanceId); }
@@ -746,14 +761,14 @@ export async function restartWhatsApp(instanceId: string = 'default'): Promise<v
   await initWhatsApp(instanceId);
 }
 
-export async function deleteSession(instanceId: string = 'default'): Promise<void> {
+export async function deleteSession(instanceId: string): Promise<void> {
   manualDisconnects.set(instanceId, true);
   // Clear all timers and counters
   const timer = reconnectTimers.get(instanceId);
   if (timer) { clearTimeout(timer); reconnectTimers.delete(instanceId); }
   reconnectAttempts.delete(instanceId);
 
-  const sessionDir = path.join(process.cwd(), env.SESSION_DIR, instanceId);
+  const sessionDir = getSessionDir(instanceId);
   const sock = sockets.get(instanceId);
   if (sock) {
     try { await sock.logout(); } catch {}

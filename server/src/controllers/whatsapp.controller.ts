@@ -6,6 +6,7 @@ import { AuthRequest } from '../middleware/auth';
 export async function getStatus(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const instanceId = req.user?.id || 'default';
+    await wa.provisionWhatsAppInstance(instanceId);
     const instance = await wa.getInstanceStatus(instanceId);
     res.json({ success: true, data: instance });
   } catch (err) {

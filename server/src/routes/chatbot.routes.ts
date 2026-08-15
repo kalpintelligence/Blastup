@@ -2,6 +2,7 @@ import { Router } from 'express';
 import * as chatbotController from '../controllers/chatbot.controller';
 import * as knowledgeController from '../controllers/knowledge.controller';
 import { authenticate } from '../middleware/auth';
+import { upload } from '../controllers/send.controller';
 
 const router = Router();
 
@@ -70,6 +71,10 @@ router.get('/status/:chatbotId', chatbotController.getChatbotStatus);
 
 // ── Dashboard Endpoints (require auth) ──────────────────────────────────────────
 router.use(authenticate);
+
+// Flow assets are private to the authenticated editor when uploaded. The
+// resulting URL is saved on the node and delivered with that node's message.
+router.post('/flow-image', upload.single('file'), chatbotController.uploadFlowImage);
 
 /**
  * @swagger

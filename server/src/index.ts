@@ -45,11 +45,6 @@ async function bootstrap() {
       });
     }
 
-    // Fallback: Initialize default if no instances exist (backwards compatibility)
-    if (activeInstances.length === 0) {
-      initWhatsApp('default').catch(() => {});
-    }
-
     // ── Graceful Shutdown ────────────────────────────────────────
     const gracefulShutdown = async (signal: string) => {
       logger.info(`${signal} received, shutting down gracefully...`);
