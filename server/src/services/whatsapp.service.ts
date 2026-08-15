@@ -39,6 +39,68 @@ const reconnectTimers = new Map<string, NodeJS.Timeout>();
 const reconnectAttempts = new Map<string, number>();
 const MAX_RECONNECT_ATTEMPTS = 5;
 
+type ApiRequestNode = {
+  id: string;
+  type: 'apiRequest';
+  content?: string;
+  inputVariable?: string;
+  inputPrompt?: string;
+  apiUrl?: string;
+  apiMethod?: 'GET' | 'POST';
+  apiHeaders?: Record<string, string>;
+};
+
+// A customer may be part-way through an API step (for example, after being
+// asked for an order ID). This is deliberately account-scoped so two tenants
+// can never use each other's variable values.
+const pendingApiRequests = new Map<string, ApiRequestNode>();
+const API_REQUEST_TIMEOUT_MS = 10_000;
+
+function interpolateTemplate(template: string, values: Record<string, unknown>): string {
+  return template.replace(/{{\s*([^}]+)\s*}}/g, (_match, rawKey: string) => {
+    const value = rawKey.split('.').reduce<unknown>((current, key) => {
+      if (current && typeof current === 'object') return (current as Record<string, unknown>)[key];
+      return undefined;
+    }, values);
+    return value === undefined || value === null ? '' : String(value);
+  });
+}
+
+export async function runApiRequest(node: ApiRequestNode, customerValue: string): Promise<string> {
+  const variable = (node.inputVariable || 'input').replace(/[^a-zA-Z0-9_]/g, '') || 'input';
+  if (!node.apiUrl) throw new Error('API URL is missing');
+
+  const urlText = interpolateTemplate(node.apiUrl, { [variable]: encodeURIComponent(customerValue) });
+  const url = new URL(urlText);
+  // Keep integrations encrypted in transit; local development endpoints are
+  // intentionally not accepted by this production flow action.
+  if (url.protocol !== 'https:') throw new Error('Only HTTPS API URLs are allowed');
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), API_REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, {
+      method: node.apiMethod === 'POST' ? 'POST' : 'GET',
+      headers: { Accept: 'application/json', ...(node.apiHeaders || {}) },
+      body: node.apiMethod === 'POST'
+        ? JSON.stringify({ [variable]: customerValue })
+        : undefined,
+      signal: controller.signal,
+    });
+    if (!response.ok) throw new Error(`API returned ${response.status}`);
+
+    const data: unknown = await response.json();
+    return interpolateTemplate(node.content || 'Your request is complete.', {
+      [variable]: customerValue,
+      input: customerValue,
+      ...(data && typeof data === 'object' ? data as Record<string, unknown> : { data }),
+      data,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** Supports both local relative paths and Docker's absolute /app/sessions mount. */
 function getSessionDir(instanceId: string): string {
   const baseDir = path.isAbsolute(env.SESSION_DIR)
@@ -441,9 +503,20 @@ async function handleChatbotAutoResponse(instanceId: string, toJid: string, inco
     let replyText: string | null = null;
     let replyImageUrl: string | undefined = undefined;
     let replyNode: any = null;
+    const conversationKey = `${instanceId}:${normalizeJid(toJid)}`;
+    const pendingApiRequest = pendingApiRequests.get(conversationKey);
 
     // ── MODE A: NO-CODE VISUAL FLOW ENGINE ─────────────────────────────────
-    if (replySource === 'nocode') {
+    if (replySource === 'nocode' && pendingApiRequest) {
+      pendingApiRequests.delete(conversationKey);
+      replyNode = pendingApiRequest;
+      try {
+        replyText = await runApiRequest(pendingApiRequest, incomingText.trim());
+      } catch (apiError) {
+        logger.warn(`[${instanceId}] No-code API request failed`, { apiError, nodeId: pendingApiRequest.id });
+        replyText = 'Sorry, I could not retrieve that information right now. Please check the ID and try again later.';
+      }
+    } else if (replySource === 'nocode') {
       if (chatbot.flows && Array.isArray(chatbot.flows) && chatbot.flows.length > 0) {
         const flows = chatbot.flows as any[];
         const startNode = flows.find(n => n.type === 'flowStart');
@@ -526,6 +599,14 @@ async function handleChatbotAutoResponse(instanceId: string, toJid: string, inco
           }
         }
       }
+    }
+
+    // API nodes first collect one customer value, then use the next inbound
+    // message to call the configured endpoint and render its JSON fields.
+    if (replyNode?.type === 'apiRequest' && !pendingApiRequest) {
+      pendingApiRequests.set(conversationKey, replyNode as ApiRequestNode);
+      replyText = replyNode.inputPrompt || `Please reply with your ${replyNode.inputVariable || 'details'}.`;
+      replyImageUrl = undefined;
     }
 
     // ── MODE B: STANDARD RULES & AI KNOWLEDGE ENGINE ───────────────────────

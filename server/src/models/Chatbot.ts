@@ -8,13 +8,18 @@ export interface IChatbotRule {
 
 export interface IChatbotFlowNode {
   id: string;
-  type: 'flowStart' | 'message' | 'mediaButtons' | 'requestIntervention';
+  type: 'flowStart' | 'message' | 'mediaButtons' | 'requestIntervention' | 'apiRequest';
   x: number;
   y: number;
   title: string;
   content: string;
   buttons: Array<{ id: string; label: string; nextNodeId?: string }>;
   connections: string[];
+  inputVariable?: string;
+  inputPrompt?: string;
+  apiUrl?: string;
+  apiMethod?: 'GET' | 'POST';
+  apiHeaders?: Record<string, string>;
 }
 
 export interface IChatbot extends Document {

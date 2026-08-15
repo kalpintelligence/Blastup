@@ -7,7 +7,7 @@ import {
   Move, Send, ArrowRight, Bot,
   MessageSquare, UserCheck, HelpCircle, Check, X,
   Smartphone, ZoomIn, ZoomOut, Play, ChevronRight, Layers,
-  FileImage, Upload, Link2, ImageOff
+  FileImage, Upload, Link2, ImageOff, Globe2
 } from 'lucide-react';
 
 export interface FlowNodeButton {
@@ -18,7 +18,7 @@ export interface FlowNodeButton {
 
 export interface FlowNode {
   id: string;
-  type: 'flowStart' | 'mediaButtons' | 'message' | 'requestIntervention';
+  type: 'flowStart' | 'mediaButtons' | 'message' | 'requestIntervention' | 'apiRequest';
   title: string;
   subtitle?: string;
   imageUrl?: string;
@@ -28,6 +28,13 @@ export interface FlowNode {
   triggers?: string[];
   buttons?: FlowNodeButton[];
   nextNodeId?: string;
+  /** The variable collected from the customer before the request, e.g. orderId. */
+  inputVariable?: string;
+  inputPrompt?: string;
+  /** HTTPS endpoint. Use {{variableName}} in the URL, e.g. /orders/{{orderId}}. */
+  apiUrl?: string;
+  apiMethod?: 'GET' | 'POST';
+  apiHeaders?: Record<string, string>;
   x: number;
   y: number;
 }
@@ -342,17 +349,24 @@ export default function ChatflowBuilder({
       mediaButtons: 'Media + Buttons',
       message: 'Message',
       requestIntervention: 'Request Intervention',
+      apiRequest: 'Call API',
     };
 
     const newNode: FlowNode = {
       id,
       type,
       title: titles[type],
-      content: type === 'requestIntervention'
+      content: type === 'apiRequest'
+        ? 'Your order is currently {{status}}.'
+        : type === 'requestIntervention'
         ? 'Our team will assist you shortly.'
         : 'Enter message text here...',
       imageUrl: type === 'mediaButtons' ? 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&q=80' : undefined,
       triggers: type === 'flowStart' ? ['Start', 'Hello'] : undefined,
+      inputVariable: type === 'apiRequest' ? 'orderId' : undefined,
+      inputPrompt: type === 'apiRequest' ? 'Please reply with your order ID.' : undefined,
+      apiUrl: type === 'apiRequest' ? 'https://api.example.com/orders/{{orderId}}' : undefined,
+      apiMethod: type === 'apiRequest' ? 'GET' : undefined,
       buttons: type === 'mediaButtons' || type === 'message'
         ? [{ id: 'b-' + Date.now(), label: 'Quick Reply' }]
         : [],
@@ -617,6 +631,13 @@ export default function ChatflowBuilder({
             </button>
             <button
               className="btn btn-secondary btn-sm flex items-center gap-1.5"
+              onClick={() => handleAddNode('apiRequest')}
+              style={{ fontSize: 12, padding: '6px 12px' }}
+            >
+              <Plus size={13} /> Call API
+            </button>
+            <button
+              className="btn btn-secondary btn-sm flex items-center gap-1.5"
               onClick={() => handleAddNode('requestIntervention')}
               style={{ fontSize: 12, padding: '6px 12px' }}
             >
@@ -652,7 +673,7 @@ export default function ChatflowBuilder({
                 <div style={{ fontSize: 12, color: '#64748b' }}>Changes update the live tester immediately and are saved with the flow.</div>
               </div>
               <span style={{ fontSize: 11, fontWeight: 700, color: '#0f766e', background: '#ccfbf1', borderRadius: 999, padding: '4px 9px' }}>
-                {selectedNode.type === 'flowStart' ? 'Trigger' : 'Message step'}
+                {selectedNode.type === 'flowStart' ? 'Trigger' : selectedNode.type === 'apiRequest' ? 'API step' : 'Message step'}
               </span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(160px, .7fr) minmax(260px, 1.5fr) minmax(260px, 1.2fr)', gap: 12 }}>
@@ -689,6 +710,34 @@ export default function ChatflowBuilder({
                   Reply delay (seconds)
                   <input className="input" type="number" min="0" max="8" value={selectedNode.responseDelaySeconds ?? 0} onChange={e => updateNode(selectedNode.id, { responseDelaySeconds: Math.min(8, Math.max(0, Number(e.target.value) || 0)) })} />
                 </label>
+              </div>
+            )}
+            {selectedNode.type === 'apiRequest' && (
+              <div style={{ marginTop: 12, padding: 12, borderRadius: 10, background: '#eff6ff', border: '1px solid #bfdbfe' }}>
+                <div style={{ fontSize: 12, fontWeight: 800, color: '#1d4ed8', marginBottom: 8 }}>Fetch live data from your API</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(160px, .7fr) minmax(260px, 1.8fr) 100px', gap: 10 }}>
+                  <label style={{ display: 'grid', gap: 5, fontSize: 11, fontWeight: 700, color: '#475569' }}>
+                    Customer variable
+                    <input className="input" value={selectedNode.inputVariable || ''} onChange={e => updateNode(selectedNode.id, { inputVariable: e.target.value.replace(/[^a-zA-Z0-9_]/g, '') })} placeholder="orderId" />
+                  </label>
+                  <label style={{ display: 'grid', gap: 5, fontSize: 11, fontWeight: 700, color: '#475569' }}>
+                    HTTPS API URL
+                    <input className="input" value={selectedNode.apiUrl || ''} onChange={e => updateNode(selectedNode.id, { apiUrl: e.target.value })} placeholder="https://api.example.com/orders/{{orderId}}" />
+                  </label>
+                  <label style={{ display: 'grid', gap: 5, fontSize: 11, fontWeight: 700, color: '#475569' }}>
+                    Method
+                    <select className="input" value={selectedNode.apiMethod || 'GET'} onChange={e => updateNode(selectedNode.id, { apiMethod: e.target.value as 'GET' | 'POST' })}>
+                      <option value="GET">GET</option><option value="POST">POST</option>
+                    </select>
+                  </label>
+                </div>
+                <label style={{ display: 'grid', gap: 5, marginTop: 10, fontSize: 11, fontWeight: 700, color: '#475569' }}>
+                  Ask the customer
+                  <input className="input" value={selectedNode.inputPrompt || ''} onChange={e => updateNode(selectedNode.id, { inputPrompt: e.target.value })} placeholder="Please reply with your order ID." />
+                </label>
+                <p style={{ fontSize: 11, color: '#475569', margin: '8px 0 0', lineHeight: 1.45 }}>
+                  The customer reply fills <code>{'{{' + (selectedNode.inputVariable || 'orderId') + '}}'}</code> in the URL. Use API fields in Message text, for example <code>Your order is going {'{{status}}'}.</code> or <code>{'{{data.status}}'}</code>.
+                </p>
               </div>
             )}
           </>
@@ -824,6 +873,8 @@ export default function ChatflowBuilder({
                       ? 'linear-gradient(135deg, #0d9488, #14b8a6)'
                       : node.type === 'message'
                       ? 'linear-gradient(135deg, #0284c7, #38bdf8)'
+                      : node.type === 'apiRequest'
+                      ? 'linear-gradient(135deg, #7c3aed, #a855f7)'
                       : 'linear-gradient(135deg, #4f46e5, #818cf8)',
                     color: 'white',
                     display: 'flex',
@@ -837,6 +888,8 @@ export default function ChatflowBuilder({
                         <FileImage size={14} />
                       ) : node.type === 'message' ? (
                         <MessageSquare size={14} />
+                      ) : node.type === 'apiRequest' ? (
+                        <Globe2 size={14} />
                       ) : (
                         <UserCheck size={14} />
                       )}
