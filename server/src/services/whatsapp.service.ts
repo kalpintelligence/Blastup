@@ -566,10 +566,16 @@ async function processIncomingMessage(instanceId: string, msg: proto.IWebMessage
     }
 
     if (!isSelfChat) {
+      if (await isWhatsAppChatbotActive(instanceId)) {
+        handleChatbotAutoResponse(instanceId, chatId, incomingText, sock).catch((e) => logger.error(`[${instanceId}] Chatbot auto-response error`, { e }));
+        return;
+      }
       const { generateChatReply, getChatReplyMode } = await import('./openai-assistant.service');
       const replyMode = await getChatReplyMode(instanceId);
-      if (!replyMode.enabled) return;
-      if (!replyMode.aiOnly) {
+      // The WhatsApp Automation sidebar is independent from Profile AI
+      // replies. When AI-only mode is not actively enabled, let the chatbot's
+      // own No-Code / Standard / Off setting decide whether to reply.
+      if (!replyMode.enabled || !replyMode.aiOnly) {
         handleChatbotAutoResponse(instanceId, chatId, incomingText, sock).catch((e) => logger.error(`[${instanceId}] Chatbot auto-response error`, { e }));
         return;
       }
@@ -601,6 +607,15 @@ async function processIncomingMessage(instanceId: string, msg: proto.IWebMessage
       logger.error(`[${instanceId}] Chatbot auto-response error`, { e })
     );
   }
+}
+
+async function isWhatsAppChatbotActive(instanceId: string) {
+  const { Chatbot } = await import('../models/Chatbot');
+  const chatbot = await Chatbot.findOne({ instanceId }).select('enabled whatsappEnabled replySource whatsappFlows flows').lean();
+  if (!chatbot || !(chatbot.whatsappEnabled ?? chatbot.enabled)) return false;
+  const activeFlows = chatbot.whatsappFlows?.length ? chatbot.whatsappFlows : chatbot.flows;
+  const source = chatbot.replySource || (activeFlows?.length ? 'nocode' : 'standard');
+  return source !== 'off';
 }
 
 async function handleChatbotAutoResponse(instanceId: string, toJid: string, incomingText: string, sock: WASocket) {
