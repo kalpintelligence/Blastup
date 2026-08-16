@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Wifi, MessageSquare, Users,
-  Send, Megaphone, BookOpen, Key, LogOut, Minus, Plus, Folder, X, Shield
+  Send, Megaphone, BookOpen, Key, LogOut, Minus, Plus, Folder, X, Shield, ListTodo
 } from 'lucide-react';
 import { logout, getUser } from '@/lib/auth';
 
@@ -97,6 +97,14 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
             <span>Contacts</span>
           </Link>
           <Link
+            href="/reminders"
+            className={`sidebar-item ${pathname.startsWith('/reminders') ? 'active' : ''}`}
+            id="nav-reminders"
+          >
+            <ListTodo />
+            <span>Reminders</span>
+          </Link>
+          <Link
             href="/campaigns"
             className={`sidebar-item ${pathname.startsWith('/campaigns') ? 'active' : ''}`}
             id="nav-campaigns"
@@ -115,7 +123,7 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
             >
               <div className="tree-header-left">
                 <Folder size={18} />
-                <span>Chatbot</span>
+                <span>Automations</span>
               </div>
               <button
                 type="button"
@@ -141,7 +149,7 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
                     id="nav-chatbot"
                   >
                     <Folder size={16} />
-                    <span>Chatbot</span>
+                    <span>Website Chatbot</span>
                   </Link>
                 </div>
 
@@ -154,7 +162,7 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
                     id="nav-no-code-chatbot"
                   >
                     <Folder size={16} />
-                    <span>No-Code Chatbot</span>
+                    <span>WhatsApp Chatbot</span>
                   </Link>
                 </div>
 
@@ -167,7 +175,7 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
                     id="nav-chatbot-leads"
                   >
                     <Folder size={16} />
-                    <span>Chatbot Leads</span>
+                    <span>Website Leads</span>
                   </Link>
                 </div>
               </div>
@@ -256,4 +264,3 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
     </aside>
   );
 }
-

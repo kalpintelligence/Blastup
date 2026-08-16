@@ -10,6 +10,7 @@ import {
   ChevronRight, Circle, Clock
 } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
+import Pagination from '@/components/ui/Pagination';
 
 interface Lead {
   _id: string;
@@ -32,6 +33,8 @@ export default function ChatbotLeadsPage() {
   const [filterDomain, setFilterDomain] = useState('');
   const [domains, setDomains] = useState<string[]>([]);
   const [isBotOnline, setIsBotOnline] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ pages: 1, total: 0 });
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const { socket, isConnected } = useSocket();
@@ -45,10 +48,11 @@ export default function ChatbotLeadsPage() {
   const fetchLeads = useCallback(async () => {
     setLoadingLeads(true);
     try {
-      const res = await chatbotLeadsApi.list({ page: 1, limit: 100, domain: filterDomain || undefined });
+      const res = await chatbotLeadsApi.list({ page, limit: 25, domain: filterDomain || undefined });
       const body = res as any;
       const data: Lead[] = body.data ?? [];
       setLeads(data);
+      setPagination(body.pagination || { pages: 1, total: data.length });
       
       // Select the first lead by default if none selected
       if (data.length > 0 && !selectedLead) {
@@ -67,11 +71,11 @@ export default function ChatbotLeadsPage() {
     } finally {
       setLoadingLeads(false);
     }
-  }, [filterDomain, selectedLead]);
+  }, [filterDomain, page]);
 
   useEffect(() => {
     fetchLeads();
-  }, [filterDomain]);
+  }, [filterDomain, page]);
 
   // Socket real-time updates
   useEffect(() => {
@@ -272,7 +276,7 @@ export default function ChatbotLeadsPage() {
             <Filter size={12} className="text-secondary" />
             <select
               value={filterDomain}
-              onChange={e => setFilterDomain(e.target.value)}
+              onChange={e => { setFilterDomain(e.target.value); setPage(1); }}
               style={{
                 background: 'transparent',
                 border: 'none',
@@ -372,6 +376,7 @@ export default function ChatbotLeadsPage() {
               })
             )}
           </div>
+          <Pagination compact page={page} pages={pagination.pages} total={pagination.total} pageSize={25} onPageChange={setPage} />
         </div>
 
         {/* Right Side: Chat Window */}

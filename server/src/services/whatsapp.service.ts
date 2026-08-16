@@ -7,6 +7,7 @@ import {
   WASocket,
   proto,
   Browsers,
+  normalizeMessageContent,
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 import path from 'path';
@@ -54,6 +55,7 @@ type ApiRequestNode = {
 // asked for an order ID). This is deliberately account-scoped so two tenants
 // can never use each other's variable values.
 const pendingApiRequests = new Map<string, ApiRequestNode>();
+const naturalReplyVersions = new Map<string, number>();
 const API_REQUEST_TIMEOUT_MS = 10_000;
 
 function interpolateTemplate(template: string, values: Record<string, unknown>): string {
@@ -195,6 +197,27 @@ export async function initWhatsApp(instanceId: string): Promise<void> {
         }
 
         const info = sock?.user;
+        const connectedPhone = info?.id?.split(':')[0] || null;
+        if (connectedPhone) {
+          const duplicateInstances = await WhatsAppInstance.find({
+            instanceId: { $ne: instanceId },
+            phone: connectedPhone,
+            status: 'connected',
+          }).select('instanceId');
+          for (const duplicate of duplicateInstances) {
+            const duplicateSocket = sockets.get(duplicate.instanceId);
+            if (duplicateSocket) {
+              manualDisconnects.set(duplicate.instanceId, true);
+              duplicateSocket.end(new Error('A newer Blastup session connected for this WhatsApp number'));
+              sockets.delete(duplicate.instanceId);
+            }
+            await WhatsAppInstance.updateOne(
+              { instanceId: duplicate.instanceId },
+              { $set: { status: 'disconnected', lastDisconnectedAt: new Date() } }
+            );
+            logger.warn(`[${instanceId}] Disconnected duplicate session ${duplicate.instanceId} for ${connectedPhone}`);
+          }
+        }
         let profilePicUrl: string | null = null;
         try {
           if (sock && info?.id) {
@@ -228,7 +251,7 @@ export async function initWhatsApp(instanceId: string): Promise<void> {
           { instanceId },
           {
             status: 'connected',
-            phone: info?.id?.split(':')[0] || null,
+            phone: connectedPhone,
             pushName: info?.name || null,
             profilePicUrl,
             qrCode: null,
@@ -393,6 +416,14 @@ export async function initWhatsApp(instanceId: string): Promise<void> {
           { msgId: receipt.key.id, instanceId },
           { status }
         );
+        const { Reminder } = await import('../models/Reminder');
+        await Reminder.findOneAndUpdate(
+          { whatsappMessageId: receipt.key.id, instanceId, actionType: 'SEND_MESSAGE' },
+          {
+            $set: { deliveryStatus: status, deliveredAt: new Date(), status: 'completed' },
+            $push: { history: { at: new Date(), type: status, message: `WhatsApp marked message as ${status}` } },
+          }
+        );
       }
     });
 
@@ -414,6 +445,7 @@ async function processIncomingMessage(instanceId: string, msg: proto.IWebMessage
   const timestamp = new Date((msg.messageTimestamp as number) * 1000 || Date.now());
   const content = getMessageContent(msg);
   const isFromMe = !!msg.key.fromMe;
+  const alternateMessageJid = normalizeJid(String((msg.key as any).remoteJidAlt || ''));
 
   await Message.findOneAndUpdate(
     { msgId, instanceId },
@@ -422,7 +454,7 @@ async function processIncomingMessage(instanceId: string, msg: proto.IWebMessage
         msgId,
         chatId,
         instanceId,
-        from: isFromMe ? normalizeJid(sock?.user?.id || '') : normalizeJid(msg.key.participant || msg.key.remoteJid),
+        from: isFromMe ? normalizeJid(sock?.user?.id || '') : (alternateMessageJid || normalizeJid(msg.key.participant || msg.key.remoteJid)),
         to: isFromMe ? chatId : (sock?.user?.id ? normalizeJid(sock.user.id) : ''),
         fromMe: isFromMe,
         type: messageType,
@@ -458,9 +490,12 @@ async function processIncomingMessage(instanceId: string, msg: proto.IWebMessage
   );
 
   const myJid = sock?.user?.id ? normalizeJid(sock.user.id) : '';
+  const alternateChatId = normalizeJid(String((msg.key as any).remoteJidAlt || ''));
   const isSelfChat = isFromMe && (
     chatId === myJid ||
+    alternateChatId === myJid ||
     chatId.split('@')[0] === myJid.split('@')[0] ||
+    (alternateChatId && alternateChatId.split('@')[0] === myJid.split('@')[0]) ||
     (sock?.user?.id && chatId.includes(sock.user.id.split(':')[0]))
   );
 
@@ -470,8 +505,99 @@ async function processIncomingMessage(instanceId: string, msg: proto.IWebMessage
     await WhatsAppInstance.findOneAndUpdate({ instanceId }, { $inc: { messagesReceived: 1, messagesToday: 1 } });
     waEvents.emit(`message:${instanceId}`, { chatId, msgId, type: messageType });
 
-    // Trigger Chatbot Auto-Responder if enabled (for customer incoming messages and self-test messages)
-    handleChatbotAutoResponse(instanceId, chatId, content.text || content.caption || '', sock).catch((e) =>
+    let incomingText = content.text || content.caption || '';
+    if (/^\/s(?:\s|$)/i.test(incomingText)) {
+      const shortcuts = [
+        '📱 Blastup shortcuts',
+        '• /t <request> — task, reminder, or scheduled message',
+        '• /t-<id> time 6:30 PM — reschedule',
+        '• /t-<id> message <text> — edit message',
+        '• /t-<id> contact <name> — change contact',
+        '• /t-<id> completed — complete task',
+        '• /t-<id> cancel — cancel task',
+        '• /c — create a campaign (self-chat only)',
+        '• /wac — create a WhatsApp chatbot flow (self-chat only)',
+        '• /r <question> — reports and summaries (self-chat only)',
+        '• /r help — report examples',
+        '• /s — show all shortcuts',
+      ].join('\n');
+      await sock.sendMessage(chatId, { text: shortcuts, __blastupSystemReply: true } as any);
+      return;
+    }
+    if (isSelfChat) {
+      const { understandAutomation } = await import('./openai-assistant.service');
+      const aiRoute = await understandAutomation(instanceId, incomingText);
+      if (aiRoute && aiRoute.intent !== 'none' && aiRoute.command) incomingText = aiRoute.command;
+      const { handleWhatsAppReportCommand } = await import('./whatsapp-report.service');
+      const reportResult = await handleWhatsAppReportCommand(instanceId, incomingText);
+      if (reportResult) {
+        await sock.sendMessage(chatId, { text: reportResult.reply, __blastupSystemReply: true } as any);
+        return;
+      }
+      const { handleWhatsAppBuilderCommand } = await import('./whatsapp-builder.service');
+      const builderResult = await handleWhatsAppBuilderCommand(instanceId, chatId, incomingText);
+      if (builderResult) {
+        const { naturalizeSystemReply } = await import('./natural-style.service');
+        const reply = await naturalizeSystemReply(instanceId, chatId, incomingText, builderResult.reply);
+        await sock.sendMessage(chatId, { text: reply, __blastupSystemReply: true } as any);
+        return;
+      }
+    }
+    try {
+      const { handleReminderCommand } = await import('./reminder.service');
+      const reminderResult = await handleReminderCommand(instanceId, chatId, incomingText, msgId);
+      if (reminderResult) {
+        const taskResult = reminderResult as { reply: string; silent?: boolean; created?: boolean };
+        if (taskResult.silent) return;
+        const isNewTaskCommand = /^\/t(?:\s|$)/i.test(incomingText) || /^\/t-contact\b/i.test(incomingText);
+        if (isNewTaskCommand && !taskResult.created) return;
+        const { naturalizeSystemReply } = await import('./natural-style.service');
+        const reply = await naturalizeSystemReply(instanceId, chatId, incomingText, taskResult.reply);
+        await sock.sendMessage(chatId, { text: reply, __blastupSystemReply: true } as any);
+        return;
+      }
+    } catch (error) {
+      logger.error(`[${instanceId}] Reminder command failed`, { error, chatId, msgId });
+      if (/^\/t-(?:\d+|contact)\b/i.test(incomingText)) {
+        await sock.sendMessage(chatId, { text: '⚠️ I could not create that task. Please check the format and try again.', __blastupSystemReply: true } as any);
+        return;
+      }
+      if (/^\/t(?:\s|$)/i.test(incomingText)) return;
+    }
+
+    if (!isSelfChat) {
+      const { generateChatReply, getChatReplyMode } = await import('./openai-assistant.service');
+      const replyMode = await getChatReplyMode(instanceId);
+      if (!replyMode.enabled) return;
+      if (!replyMode.aiOnly) {
+        handleChatbotAutoResponse(instanceId, chatId, incomingText, sock).catch((e) => logger.error(`[${instanceId}] Chatbot auto-response error`, { e }));
+        return;
+      }
+      const replyKey = `${instanceId}:${chatId}`;
+      const replyVersion = (naturalReplyVersions.get(replyKey) || 0) + 1;
+      naturalReplyVersions.set(replyKey, replyVersion);
+      if (!replyMode.cloudConfigured) { naturalReplyVersions.delete(replyKey); return; }
+      await new Promise(resolve => setTimeout(resolve, 2500));
+      if (naturalReplyVersions.get(replyKey) !== replyVersion) return;
+      await sock.readMessages([msg.key]).catch(error => logger.warn(`[${instanceId}] Could not mark AI chat message read`, { chatId, error: error instanceof Error ? error.message : String(error) }));
+      const aiReply = await generateChatReply(instanceId, chatId, incomingText);
+      if (aiReply) {
+        const { learnedReplyDelay } = await import('./local-reply.service');
+        const delay = await learnedReplyDelay(instanceId, chatId);
+        await sock.sendPresenceUpdate('composing', chatId).catch(() => undefined);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        if (naturalReplyVersions.get(replyKey) !== replyVersion) { await sock.sendPresenceUpdate('paused', chatId).catch(() => undefined); return; }
+        await sock.sendMessage(chatId, { text: aiReply, __blastupSystemReply: true } as any);
+        naturalReplyVersions.delete(replyKey);
+        await sock.sendPresenceUpdate('paused', chatId).catch(() => undefined);
+        return;
+      }
+      naturalReplyVersions.delete(replyKey);
+      return;
+    }
+
+    // Trigger the configured rule-based chatbot when AI reply is disabled or unavailable.
+    handleChatbotAutoResponse(instanceId, chatId, incomingText, sock).catch((e) =>
       logger.error(`[${instanceId}] Chatbot auto-response error`, { e })
     );
   }
@@ -484,7 +610,10 @@ async function handleChatbotAutoResponse(instanceId: string, toJid: string, inco
     const knowledgeEngine = await import('./knowledgeEngine');
 
     // Chatbot configuration is private to this WhatsApp instance.
-    const chatbot = await Chatbot.findOne({ instanceId, enabled: true }).lean();
+    const chatbot = await Chatbot.findOne({
+      instanceId,
+      $or: [{ whatsappEnabled: true }, { whatsappEnabled: { $exists: false }, enabled: true }],
+    }).lean();
 
     if (!chatbot || !incomingText) {
       logger.info(`[${instanceId}] Chatbot not enabled or no incoming text to auto-respond.`);
@@ -492,9 +621,10 @@ async function handleChatbotAutoResponse(instanceId: string, toJid: string, inco
     }
 
     // Determine active reply mode ('nocode' vs 'standard' vs 'off')
-    const replySource = chatbot.replySource || (chatbot.flows && chatbot.flows.length > 0 ? 'nocode' : 'standard');
+    const activeFlows = chatbot.whatsappFlows?.length ? chatbot.whatsappFlows : chatbot.flows;
+    const replySource = chatbot.replySource || (activeFlows && activeFlows.length > 0 ? 'nocode' : 'standard');
 
-    if (replySource === 'off' || !chatbot.enabled) {
+    if (replySource === 'off' || !(chatbot.whatsappEnabled ?? chatbot.enabled)) {
       logger.info(`[${instanceId}] Chatbot auto-response is turned off.`);
       return;
     }
@@ -517,16 +647,15 @@ async function handleChatbotAutoResponse(instanceId: string, toJid: string, inco
         replyText = 'Sorry, I could not retrieve that information right now. Please check the ID and try again later.';
       }
     } else if (replySource === 'nocode') {
-      if (chatbot.flows && Array.isArray(chatbot.flows) && chatbot.flows.length > 0) {
-        const flows = chatbot.flows as any[];
-        const startNode = flows.find(n => n.type === 'flowStart');
-        const startTriggers = (startNode?.triggers || ['hi', 'hello', 'help', 'menu', 'studio', 'urban', 'start', 'hey'])
-          .map((t: string) => t.toLowerCase().trim());
-
-        // Check if matches start trigger
-        const isStartTrigger = startTriggers.some((trg: string) =>
-          lowerText === trg || lowerText.startsWith(trg) || lowerText.includes(trg)
-        );
+      if (activeFlows && Array.isArray(activeFlows) && activeFlows.length > 0) {
+        const flows = activeFlows as any[];
+        const startNodes = flows.filter(n => n.type === 'flowStart');
+        const startNode = startNodes.find(node => (node.triggers || []).some((trigger: string) => {
+          const value = trigger.toLowerCase().trim();
+          return value && (lowerText === value || lowerText.startsWith(value) || lowerText.includes(value));
+        })) || startNodes[0];
+        const startTriggers = (startNode?.triggers || ['hi', 'hello', 'help', 'menu', 'studio', 'urban', 'start', 'hey']).map((t: string) => t.toLowerCase().trim());
+        const isStartTrigger = startTriggers.some((trg: string) => lowerText === trg || lowerText.startsWith(trg) || lowerText.includes(trg));
 
         if (isStartTrigger) {
           // Find first connected node after start (e.g. mediaButtons or message)
@@ -731,7 +860,7 @@ async function handleChatbotAutoResponse(instanceId: string, toJid: string, inco
 }
 
 function getMessageType(msg: proto.IWebMessageInfo): string {
-  const m = msg.message;
+  const m = normalizeMessageContent(msg.message);
   if (!m) return 'unknown';
   if (m.conversation || m.extendedTextMessage) return 'text';
   if (m.imageMessage) return 'image';
@@ -745,7 +874,7 @@ function getMessageType(msg: proto.IWebMessageInfo): string {
 }
 
 function getMessageContent(msg: proto.IWebMessageInfo): { text?: string; caption?: string } {
-  const m = msg.message;
+  const m = normalizeMessageContent(msg.message);
   if (!m) return {};
   if (m.conversation) return { text: m.conversation };
   if (m.extendedTextMessage) return { text: m.extendedTextMessage.text || '' };

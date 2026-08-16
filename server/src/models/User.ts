@@ -13,6 +13,16 @@ export interface IUser extends Document {
   lastLoginIp: string | null;
   lastSeenAt: Date | null;
   isActive: boolean;
+  openaiApiKeyEncrypted?: string | null;
+  openaiKeyLast4?: string | null;
+  geminiApiKeyEncrypted?: string | null;
+  geminiKeyLast4?: string | null;
+  aiProvider: 'auto' | 'openai' | 'gemini';
+  aiAutomationEnabled: boolean;
+  aiReplyEnabled: boolean;
+  aiOnlyReplyEnabled: boolean;
+  aiOwnerName?: string | null;
+  aiRelationshipNotes?: string | null;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -74,6 +84,16 @@ const userSchema = new Schema<IUser>(
       type: Boolean,
       default: true,
     },
+    openaiApiKeyEncrypted: { type: String, default: null, select: false },
+    openaiKeyLast4: { type: String, default: null },
+    geminiApiKeyEncrypted: { type: String, default: null, select: false },
+    geminiKeyLast4: { type: String, default: null },
+    aiProvider: { type: String, enum: ['auto', 'openai', 'gemini'], default: 'auto' },
+    aiAutomationEnabled: { type: Boolean, default: false },
+    aiReplyEnabled: { type: Boolean, default: false },
+    aiOnlyReplyEnabled: { type: Boolean, default: true },
+    aiOwnerName: { type: String, default: null, maxlength: 100 },
+    aiRelationshipNotes: { type: String, default: null, maxlength: 5000 },
   },
   {
     timestamps: true,
@@ -106,6 +126,8 @@ userSchema.methods.toJSON = function () {
   delete obj.password;
   delete obj.failedLoginAttempts;
   delete obj.lockedUntil;
+  delete obj.openaiApiKeyEncrypted;
+  delete obj.geminiApiKeyEncrypted;
   return obj;
 };
 

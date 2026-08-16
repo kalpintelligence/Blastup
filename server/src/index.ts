@@ -8,6 +8,18 @@ import { disconnectRedis } from './config/redis';
 import { initSocket } from './services/socket.service';
 import http from 'http';
 
+// libsignal writes full cryptographic session objects directly to console for
+// recoverable ratchet changes. Keep operational logs readable without hiding
+// unrelated warnings or errors.
+const originalConsoleWarn = console.warn.bind(console);
+const originalConsoleError = console.error.bind(console);
+const isSignalSessionNoise = (args: unknown[]) => {
+  const first = String(args[0] || '');
+  return first.startsWith('Closing open session') || first.startsWith('Closing session:') || first.startsWith('Session error:Error: Bad MAC');
+};
+console.warn = (...args: unknown[]) => { if (!isSignalSessionNoise(args)) originalConsoleWarn(...args); };
+console.error = (...args: unknown[]) => { if (!isSignalSessionNoise(args)) originalConsoleError(...args); };
+
 async function bootstrap() {
   try {
     // Connect to MongoDB
@@ -38,8 +50,22 @@ async function bootstrap() {
     });
 
     // Auto-resume previously connected sessions
-    const activeInstances = await WhatsAppInstance.find({ status: 'connected' });
+    const activeInstances = await WhatsAppInstance.find({ status: 'connected' }).sort({ lastConnectedAt: -1 });
+    const activePhones = new Set<string>();
+    const instancesToResume = [];
     for (const inst of activeInstances) {
+      if (inst.phone && activePhones.has(inst.phone)) {
+        await WhatsAppInstance.updateOne(
+          { _id: inst._id },
+          { $set: { status: 'disconnected', lastDisconnectedAt: new Date() } }
+        );
+        logger.warn(`Skipped duplicate WhatsApp session for ${inst.phone}`, { instanceId: inst.instanceId });
+        continue;
+      }
+      if (inst.phone) activePhones.add(inst.phone);
+      instancesToResume.push(inst);
+    }
+    for (const inst of instancesToResume) {
       initWhatsApp(inst.instanceId).catch((err) => {
         logger.error(`WhatsApp auto-resume error for ${inst.instanceId}`, { err });
       });

@@ -24,8 +24,8 @@ type Tab = 'settings' | 'appearance' | 'rules' | 'flow' | 'knowledge' | 'preview
 const TABS: { key: Tab; label: string; icon: any }[] = [
   { key: 'settings', label: 'Bot Identity & Settings', icon: Settings },
   { key: 'appearance', label: 'Appearance & Themes', icon: Palette },
-  { key: 'rules', label: 'Auto-Reply Rules', icon: Zap },
-  { key: 'flow', label: 'No-Code Chatflow Builder', icon: Layers },
+  { key: 'rules', label: 'Website Reply Rules', icon: Zap },
+  { key: 'flow', label: 'Website Automation Board', icon: Layers },
   { key: 'knowledge', label: 'Company Knowledge', icon: BookOpen },
   { key: 'preview', label: 'Test Simulator', icon: Eye },
   { key: 'embed', label: 'Embed Widget', icon: Code2 },
@@ -153,7 +153,7 @@ export default function ChatbotPage() {
     chatbotApi.get().then((res) => {
       const d = res.data;
       if (d) {
-        setEnabled(d.enabled || false);
+        setEnabled(d.websiteEnabled ?? d.enabled ?? false);
         setReplySource(d.replySource || (d.flows?.length > 0 ? 'nocode' : 'standard'));
         setBotName(d.botName || 'Blastup Bot');
         setBotIcon(d.botIcon || 'bot');
@@ -173,8 +173,9 @@ export default function ChatbotPage() {
         setRules(d.rules || []);
         setCollectLeads(d.collectLeads || false);
         setLeadFields(d.leadFields || ['name', 'email']);
-        if (d.flows && Array.isArray(d.flows) && d.flows.length > 0) {
-          setFlows(d.flows);
+        const websiteFlows = d.websiteFlows || d.flows;
+        if (websiteFlows && Array.isArray(websiteFlows) && websiteFlows.length > 0) {
+          setFlows(websiteFlows);
         }
       }
     }).catch(() => { }).finally(() => setLoading(false));
@@ -220,11 +221,11 @@ export default function ChatbotPage() {
     try {
       const flowsToSave = Array.isArray(updatedFlows) ? updatedFlows : flows;
       await chatbotApi.update({
-        enabled, replySource, botName, botIcon, welcomeMessage, fallbackMessage, offlineMessage,
+        websiteEnabled: enabled, botName, botIcon, welcomeMessage, fallbackMessage, offlineMessage,
         headerText, subHeaderText, buttonLabel,
         primaryColor, secondaryColor, gradient, gradientAngle, position, theme,
         rules, collectLeads, leadFields,
-        flows: flowsToSave,
+        websiteFlows: flowsToSave,
       });
       if (Array.isArray(updatedFlows)) setFlows(updatedFlows);
       setSaved(true);
@@ -417,7 +418,7 @@ export default function ChatbotPage() {
   const steps = [
     { n: 1, label: 'Identity', desc: 'Set name & welcome prompt', tab: 'settings' as Tab, isComplete: botName.trim().length > 0 && welcomeMessage.trim().length > 0 },
     { n: 2, label: 'Appearance', desc: 'Set branding & style', tab: 'appearance' as Tab, isComplete: !!primaryColor },
-    { n: 3, label: 'Auto-Reply Rules', desc: 'Add response keywords', tab: 'rules' as Tab, isComplete: rules.length > 0 },
+    { n: 3, label: 'Website Reply Rules', desc: 'Add response keywords', tab: 'rules' as Tab, isComplete: rules.length > 0 },
     { n: 4, label: 'Copy & Embed', desc: 'Integrate into website', tab: 'embed' as Tab, isComplete: copied },
   ];
   const completedCount = steps.filter(s => s.isComplete).length;
@@ -471,11 +472,11 @@ export default function ChatbotPage() {
 
   return (
     <div>
-      <Header title="Chatbot" subtitle="Premium keyword-triggered auto-response engine for WhatsApp" />
+      <Header title="Website Chatbot" subtitle="Design and deploy your embedded website chat experience" />
       <div className="page-content" style={{ maxWidth: 1100 }}>
 
-        {/* ── WhatsApp Reply Engine Mode Selector ── */}
-        <div className="card" style={{
+        {/* Website and WhatsApp controls are intentionally separate. */}
+        {false && <div className="card" style={{
           marginBottom: 20,
           background: '#ffffff',
           border: '1.5px solid #e2e8f0',
@@ -490,7 +491,7 @@ export default function ChatbotPage() {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>
-                WhatsApp Reply Engine
+                Legacy Automation Control
               </span>
               <span style={{
                 fontSize: 11,
@@ -577,7 +578,7 @@ export default function ChatbotPage() {
               <span>Turn Off</span>
             </button>
           </div>
-        </div>
+        </div>}
 
         {/* ── Premium Setup Onboarding Wizard ── */}
         <div className="card" style={{
@@ -2211,4 +2212,3 @@ export default function ChatbotPage() {
     </div>
   );
 }
-

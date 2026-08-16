@@ -220,9 +220,10 @@ export default function UrbanStudiozChatbotPage() {
       const res = await chatbotApi.get();
       if (res.data) {
         setConfig(res.data);
-        setReplySource(res.data.replySource || (res.data.flows?.length > 0 ? 'nocode' : 'standard'));
-        if (res.data.flows && res.data.flows.length > 0) {
-          setCurrentFlows(res.data.flows);
+        setReplySource((res.data.whatsappEnabled ?? res.data.enabled) ? 'nocode' : 'off');
+        const whatsappFlows = res.data.whatsappFlows || res.data.flows;
+        if (whatsappFlows && whatsappFlows.length > 0) {
+          setCurrentFlows(whatsappFlows);
         }
       }
     } catch (err: any) {
@@ -245,10 +246,10 @@ export default function UrbanStudiozChatbotPage() {
     setReplySource(newSource);
     try {
       await chatbotApi.update({
-        enabled: newSource !== 'off',
+        whatsappEnabled: newSource !== 'off',
         replySource: newSource,
         ...config,
-        flows: currentFlows,
+        whatsappFlows: currentFlows,
       });
       setMessage({
         type: 'success',
@@ -269,12 +270,12 @@ export default function UrbanStudiozChatbotPage() {
     setMessage(null);
     try {
       const payload = {
-        enabled: true,
+        whatsappEnabled: true,
         replySource: 'nocode',
         botName: config?.botName || 'Urban Studioz Bot',
         primaryColor: config?.primaryColor || '#16A34A',
         ...config,
-        flows,
+        whatsappFlows: flows,
       };
 
       const res = await chatbotApi.update(payload);
@@ -295,12 +296,12 @@ export default function UrbanStudiozChatbotPage() {
   return (
     <>
       <Header
-        title="No-Code Chatbot"
-        subtitle="Visual conversational flow builder & interactive WhatsApp testing simulator"
+        title="WhatsApp Chatbot"
+        subtitle="Visual WhatsApp automation flow builder and testing simulator"
       />
 
       <div className="page-content">
-        {/* ── WhatsApp Reply Engine Mode Selector ── */}
+        {/* ── WhatsApp automation controls ── */}
         <div style={{
           background: '#ffffff',
           border: '1.5px solid #e2e8f0',
@@ -316,7 +317,7 @@ export default function UrbanStudiozChatbotPage() {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>
-                WhatsApp Reply Engine
+                WhatsApp Automation
               </span>
               <span style={{
                 fontSize: 11,
@@ -331,7 +332,7 @@ export default function UrbanStudiozChatbotPage() {
               </span>
             </div>
             <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
-              Select whether incoming customer messages trigger No-Code flows or Standard Rules.
+              Control automated replies for WhatsApp independently from the website chatbot.
             </div>
           </div>
 

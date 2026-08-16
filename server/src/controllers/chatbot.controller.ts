@@ -54,7 +54,7 @@ export async function updateChatbot(req: AuthRequest, res: Response, next: NextF
       enabled, replySource, botName, botIcon, welcomeMessage, fallbackMessage, offlineMessage,
       headerText, subHeaderText, buttonLabel,
       primaryColor, secondaryColor, gradient, gradientAngle, position, theme,
-      rules, collectLeads, leadFields, flows,
+      rules, collectLeads, leadFields, flows, websiteEnabled, whatsappEnabled, websiteFlows, whatsappFlows,
     } = req.body;
 
     const setPayload: any = {
@@ -82,6 +82,10 @@ export async function updateChatbot(req: AuthRequest, res: Response, next: NextF
     if (flows !== undefined) {
       setPayload.flows = flows;
     }
+    if (websiteEnabled !== undefined) setPayload.websiteEnabled = !!websiteEnabled;
+    if (whatsappEnabled !== undefined) setPayload.whatsappEnabled = !!whatsappEnabled;
+    if (websiteFlows !== undefined) setPayload.websiteFlows = websiteFlows;
+    if (whatsappFlows !== undefined) setPayload.whatsappFlows = whatsappFlows;
 
     const chatbot = await Chatbot.findOneAndUpdate(
       { instanceId },
@@ -92,7 +96,7 @@ export async function updateChatbot(req: AuthRequest, res: Response, next: NextF
     // Broadcast chatbot online/offline status to all socket clients
     emitChatbotStatus({
       instanceId,
-      enabled: enabled !== undefined ? !!enabled : false,
+      enabled: websiteEnabled !== undefined ? !!websiteEnabled : (enabled !== undefined ? !!enabled : false),
     });
 
     res.json({ success: true, data: chatbot });
@@ -138,7 +142,7 @@ export async function handleWidgetMessage(req: Request, res: Response, next: Nex
     // Find a chatbot configuration with this id
     const chatbot = await Chatbot.findOne({
       _id: chatbotId,
-      enabled: true
+      $or: [{ websiteEnabled: true }, { websiteEnabled: { $exists: false }, enabled: true }],
     }).lean();
 
     if (!chatbot) {
@@ -156,8 +160,9 @@ export async function handleWidgetMessage(req: Request, res: Response, next: Nex
     let matchedFlow = false;
 
     // Use the same saved no-code flow for the embedded website chatbot.
-    if (chatbot.replySource === 'nocode' && Array.isArray(chatbot.flows) && chatbot.flows.length > 0) {
-      const flows = chatbot.flows as any[];
+    const websiteFlows = (chatbot.websiteFlows?.length ? chatbot.websiteFlows : chatbot.flows) as any[];
+    if (Array.isArray(websiteFlows) && websiteFlows.length > 0) {
+      const flows = websiteFlows;
       const formatNode = (node: any) => {
         let text = node.content || node.title || chatbot.fallbackMessage;
         if (node.buttons?.length) {

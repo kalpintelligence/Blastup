@@ -25,6 +25,8 @@ export interface IChatbotFlowNode {
 export interface IChatbot extends Document {
   instanceId: string;
   enabled: boolean;
+  websiteEnabled?: boolean;
+  whatsappEnabled?: boolean;
   replySource: 'nocode' | 'standard' | 'off';
   // Messages
   welcomeMessage: string;
@@ -49,6 +51,8 @@ export interface IChatbot extends Document {
   leadFields: Array<'name' | 'email' | 'phone'>;
   // No-code Flow Builder
   flows: IChatbotFlowNode[];
+  websiteFlows?: IChatbotFlowNode[];
+  whatsappFlows?: IChatbotFlowNode[];
   // Timestamps
   createdAt: Date;
   updatedAt: Date;
@@ -69,6 +73,8 @@ const chatbotSchema = new Schema<IChatbot>(
       index: true,
     },
     enabled: { type: Boolean, default: false },
+    websiteEnabled: { type: Boolean },
+    whatsappEnabled: { type: Boolean },
     replySource: {
       type: String,
       enum: ['nocode', 'standard', 'off'],
@@ -117,6 +123,8 @@ const chatbotSchema = new Schema<IChatbot>(
     },
     // No-code Flow Builder
     flows: { type: Schema.Types.Mixed, default: [] },
+    websiteFlows: { type: Schema.Types.Mixed, default: [] },
+    whatsappFlows: { type: Schema.Types.Mixed, default: [] },
   },
   {
     timestamps: true,

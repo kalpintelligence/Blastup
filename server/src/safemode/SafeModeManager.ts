@@ -206,7 +206,10 @@ export class SafeModeManager {
   async recordReply(phoneId: string, fromJid: string): Promise<void> {
     const enabled = await this.store.isEnabled(phoneId);
     if (!enabled) return;
-    await this.store.incrementReplies(phoneId);
+    await Promise.all([
+      this.store.incrementReplies(phoneId),
+      this.store.markJidSeen(phoneId, fromJid),
+    ]);
   }
 
   /**

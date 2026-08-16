@@ -18,7 +18,7 @@ export interface FlowNodeButton {
 
 export interface FlowNode {
   id: string;
-  type: 'flowStart' | 'mediaButtons' | 'message' | 'requestIntervention' | 'apiRequest';
+  type: 'flowStart' | 'mediaButtons' | 'message' | 'requestIntervention' | 'apiRequest' | 'leadCapture' | 'assignAgent' | 'availability';
   title: string;
   subtitle?: string;
   imageUrl?: string;
@@ -350,6 +350,9 @@ export default function ChatflowBuilder({
       message: 'Message',
       requestIntervention: 'Request Intervention',
       apiRequest: 'Call API',
+      leadCapture: 'Collect Lead',
+      assignAgent: 'Assign Agent',
+      availability: 'Agent Availability',
     };
 
     const newNode: FlowNode = {
@@ -360,6 +363,12 @@ export default function ChatflowBuilder({
         ? 'Your order is currently {{status}}.'
         : type === 'requestIntervention'
         ? 'Our team will assist you shortly.'
+        : type === 'leadCapture'
+        ? 'Collect name, email, and phone before continuing.'
+        : type === 'assignAgent'
+        ? 'Assign this conversation to the next available agent.'
+        : type === 'availability'
+        ? 'Check whether an agent is online before routing the conversation.'
         : 'Enter message text here...',
       imageUrl: type === 'mediaButtons' ? 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&q=80' : undefined,
       triggers: type === 'flowStart' ? ['Start', 'Hello'] : undefined,
@@ -642,6 +651,15 @@ export default function ChatflowBuilder({
               style={{ fontSize: 12, padding: '6px 12px' }}
             >
               <Plus size={13} /> Handover
+            </button>
+            <button className="btn btn-secondary btn-sm flex items-center gap-1.5" onClick={() => handleAddNode('leadCapture')} style={{ fontSize: 12, padding: '6px 12px' }}>
+              <Plus size={13} /> Lead Capture
+            </button>
+            <button className="btn btn-secondary btn-sm flex items-center gap-1.5" onClick={() => handleAddNode('assignAgent')} style={{ fontSize: 12, padding: '6px 12px' }}>
+              <Plus size={13} /> Assign Agent
+            </button>
+            <button className="btn btn-secondary btn-sm flex items-center gap-1.5" onClick={() => handleAddNode('availability')} style={{ fontSize: 12, padding: '6px 12px' }}>
+              <Plus size={13} /> Online / Offline
             </button>
           </div>
 

@@ -22,6 +22,7 @@ import campaignRoutes from './routes/campaign.routes';
 import chatbotRoutes from './routes/chatbot.routes';
 import adminRoutes from './routes/admin.routes';
 import analyticsRoutes from './routes/analytics.routes';
+import reminderRoutes from './routes/reminder.routes';
 
 import { initCampaignScheduler } from './services/campaignScheduler';
 import { normalizeExistingDatabase } from './utils/jid';
@@ -29,12 +30,14 @@ import { createSafeModeRouter, safeModeErrorHandler } from './safemode';
 import { getSafeModeManager } from './config/safemode';
 
 import { env } from './config/env';
+import { processDueReminders } from './services/reminder.service';
 
 export function createApp(): express.Application {
   const app = express();
 
   // ── Initialize background services ──────────────────────────────
   initCampaignScheduler();
+  setInterval(() => processDueReminders().catch(() => {}), 30_000).unref();
   normalizeExistingDatabase().catch(() => { });
 
   // ── Security middleware ─────────────────────────────────────────
@@ -163,6 +166,8 @@ export function createApp(): express.Application {
     '/api/health',
     healthRoutes
   );
+
+  app.use('/api/reminders', reminderRoutes);
 
   app.use(
     '/api/auth',

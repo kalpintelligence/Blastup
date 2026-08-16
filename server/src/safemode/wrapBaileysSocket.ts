@@ -27,20 +27,28 @@ export function wrapBaileysSocket(sock: any, manager: SafeModeManager, phoneId: 
   const originalSendMessage = sock.sendMessage.bind(sock);
 
   sock.sendMessage = async function (toJid: string, content: any, ...rest: any[]) {
+    // Operational acknowledgements are direct replies to a user command, not
+    // outbound campaigns. They must remain available outside campaign hours.
+    const isSystemReply = content?.__blastupSystemReply === true;
+    const outgoingContent = isSystemReply
+      ? Object.fromEntries(Object.entries(content).filter(([key]) => key !== '__blastupSystemReply'))
+      : content;
     // Extract text payload for link detection
     const text: string | undefined =
-      content?.text ||
-      content?.caption ||
-      content?.conversation ||
-      content?.extendedTextMessage?.text ||
+      outgoingContent?.text ||
+      outgoingContent?.caption ||
+      outgoingContent?.conversation ||
+      outgoingContent?.extendedTextMessage?.text ||
       undefined;
 
-    await manager.checkAndRecord(phoneId, {
-      toJid: normalizeJid(toJid),
-      text,
-    });
+    if (!isSystemReply) {
+      await manager.checkAndRecord(phoneId, {
+        toJid: normalizeJid(toJid),
+        text,
+      });
+    }
 
-    return originalSendMessage(toJid, content, ...rest);
+    return originalSendMessage(toJid, outgoingContent, ...rest);
   } as typeof sock.sendMessage;
 
   // ── Wrap groupCreate ───────────────────────────────────────────────────

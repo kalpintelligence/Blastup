@@ -4,6 +4,7 @@ import { authenticate } from '../middleware/auth';
 import { loginLimiter } from '../middleware/rateLimit';
 import { validate } from '../middleware/validate';
 import { z } from 'zod';
+import multer from 'multer';
 
 const router = Router();
 
@@ -21,6 +22,18 @@ const registerSchema = z.object({
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1),
   newPassword: z.string().min(8).max(128),
+});
+const aiSettingsSchema = z.object({
+  apiKey: z.string().trim().min(20).max(300).optional(),
+  geminiApiKey: z.string().trim().min(20).max(300).optional(),
+  removeApiKey: z.boolean().optional(),
+  removeGeminiKey: z.boolean().optional(),
+  aiProvider: z.enum(['auto', 'openai', 'gemini']).optional(),
+  aiAutomationEnabled: z.boolean().optional(),
+  aiReplyEnabled: z.boolean().optional(),
+  aiOnlyReplyEnabled: z.boolean().optional(),
+  aiOwnerName: z.string().trim().max(100).optional(),
+  aiRelationshipNotes: z.string().trim().max(5000).optional(),
 });
 
 /**
@@ -127,5 +140,9 @@ router.get('/me', authenticate, authController.me);
  *         description: Password updated successfully
  */
 router.patch('/password', authenticate, validate(changePasswordSchema), authController.changePassword);
+router.patch('/ai-settings', authenticate, validate(aiSettingsSchema), authController.updateAISettings);
+router.get('/ai-settings/credits', authenticate, authController.getAICreditStatus);
+const trainingUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 }, fileFilter: (_req, file, cb) => cb(null, file.originalname.toLowerCase().endsWith('.txt')) });
+router.post('/ai-settings/training', authenticate, trainingUpload.single('file'), authController.uploadChatTraining);
 
 export default router;

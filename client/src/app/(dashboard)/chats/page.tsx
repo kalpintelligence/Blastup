@@ -7,6 +7,7 @@ import { SkeletonChatRow, Shimmer } from '@/components/ui/Skeleton';
 import { Search, Filter, MessageSquare, Send, CheckCheck, Phone, ShieldCheck, MoreVertical } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { formatPhoneNumber } from '@/lib/format';
+import Pagination from '@/components/ui/Pagination';
 
 export default function ChatsPage() {
   const [chats, setChats] = useState<any[]>([]);
@@ -16,6 +17,8 @@ export default function ChatsPage() {
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [loadingChats, setLoadingChats] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ pages: 1, total: 0 });
   
   // Composer state
   const [replyText, setReplyText] = useState('');
@@ -25,8 +28,9 @@ export default function ChatsPage() {
   // Fetch all chats
   const fetchChats = async () => {
     try {
-      const res = await chatsApi.list({ page: 1, limit: 50, search: search || undefined, unreadOnly });
+      const res = await chatsApi.list({ page, limit: 25, search: search || undefined, unreadOnly });
       setChats(res.data);
+      setPagination(res.pagination);
       if (!selectedChat && res.data.length > 0) {
         setSelectedChat(res.data[0]);
       }
@@ -40,7 +44,7 @@ export default function ChatsPage() {
   useEffect(() => {
     const timer = setTimeout(fetchChats, 300);
     return () => clearTimeout(timer);
-  }, [search, unreadOnly]);
+  }, [search, unreadOnly, page]);
 
   // Fetch messages when selected chat changes
   useEffect(() => {
@@ -141,13 +145,13 @@ export default function ChatsPage() {
                 className="search-input"
                 placeholder="Search chats..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               />
             </div>
             <button
               id="chats-filter-unread"
               className={`btn btn-sm ${unreadOnly ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setUnreadOnly(!unreadOnly)}
+              onClick={() => { setUnreadOnly(!unreadOnly); setPage(1); }}
               title="Filter unread chats"
             >
               <Filter size={12} />
@@ -206,6 +210,7 @@ export default function ChatsPage() {
               })
             )}
           </div>
+          <Pagination compact page={page} pages={pagination.pages} total={pagination.total} pageSize={25} onPageChange={setPage} />
         </div>
 
         {/* Right Pane: WhatsApp Chat Window */}

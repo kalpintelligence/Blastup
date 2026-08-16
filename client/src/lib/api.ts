@@ -65,6 +65,15 @@ export const authApi = {
 
   changePassword: (currentPassword: string, newPassword: string) =>
     request('/api/auth/password', { method: 'PATCH', body: JSON.stringify({ currentPassword, newPassword }) }),
+  updateAISettings: (data: { apiKey?: string; geminiApiKey?: string; removeApiKey?: boolean; removeGeminiKey?: boolean; aiProvider?: 'auto' | 'openai' | 'gemini'; aiAutomationEnabled?: boolean; aiReplyEnabled?: boolean; aiOnlyReplyEnabled?: boolean; aiOwnerName?: string; aiRelationshipNotes?: string }) =>
+    request<{ success: boolean; data: any }>('/api/auth/ai-settings', { method: 'PATCH', body: JSON.stringify(data) }),
+  getAICreditStatus: () => request<{ success: boolean; data: { percentage: number | null; status: string; message: string } }>('/api/auth/ai-settings/credits'),
+  uploadChatTraining: async (file: File, ownerName: string, chatName?: string) => {
+    const body = new FormData(); body.append('file', file); body.append('ownerName', ownerName); if (chatName) body.append('chatName', chatName);
+    const response = await fetch('/api/auth/ai-settings/training', { method: 'POST', credentials: 'include', body });
+    const data = await response.json(); if (!response.ok) throw new ApiError(response.status, data?.message || 'Training upload failed', data);
+    return data as { success: boolean; data: { imported: number; yourMessages: number } };
+  },
 };
 
 // ── WhatsApp ──────────────────────────────────────────────────────────
@@ -131,6 +140,14 @@ export const contactsApi = {
 
   delete: (jid: string) =>
     request<{ success: boolean }>(`/api/contacts/${encodeURIComponent(jid)}`, { method: 'DELETE' }),
+};
+
+export const remindersApi = {
+  list: (params?: { page?: number; limit?: number }) => request<{ success: boolean; data: any[]; pagination: any }>('/api/reminders', { params }),
+  update: (taskId: number, data: Record<string, unknown>) =>
+    request<{ success: boolean; data: any }>(`/api/reminders/${taskId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  cancel: (taskId: number) =>
+    request<{ success: boolean; data: any }>(`/api/reminders/${taskId}/cancel`, { method: 'POST' }),
 };
 
 
@@ -227,7 +244,9 @@ export const chatbotApi = {
   get: () => request<{ success: boolean; data: any }>('/api/chatbot'),
 
   update: (data: {
-    enabled: boolean;
+    enabled?: boolean;
+    websiteEnabled?: boolean;
+    whatsappEnabled?: boolean;
     replySource?: 'nocode' | 'standard' | 'off';
     botName?: string;
     botIcon?: string;
@@ -248,6 +267,8 @@ export const chatbotApi = {
     collectLeads?: boolean;
     leadFields?: Array<'name' | 'email' | 'phone'>;
     flows?: any[];
+    websiteFlows?: any[];
+    whatsappFlows?: any[];
   }) => request<{ success: boolean; data: any }>('/api/chatbot', {
     method: 'PUT',
     body: JSON.stringify(data),
